@@ -1,0 +1,110 @@
+invalidate: 1607413556000
+id: e7b48df7-4357-4fa7-8066-cb0f5be16238
+revision: d24fa1e896f66f14a1c13def4d603e2e90530163
+name: null
+tag: null
+deleted_at: null
+desc: ''
+flows:
+    fallback: $include(./flows/fallback.yml)
+    csat: $include(./flows/csat.yml)
+    regist: $include(./flows/regist.yml)
+    location: $include(./flows/location.yml)
+    order: $include(./flows/order.yml)
+    changeOrder: $include(./flows/changeOrder.yml)
+    checkout: $include(./flows/checkout.yml)
+    bye: $include(./flows/bye.yml)
+    reset: $include(./flows/reset.yml)
+nlus: $include(./nlu.yml)
+methods:
+    parseTime(ctx):
+        code: $include(./methods/parseTime.js)
+        entry: parseTime
+    parseTimeCheckout(ctx):
+        code: $include(./methods/parseTimeCheckout.js)
+        entry: parseTimeCheckout
+    logAttributes(ctx):
+        code: $include(./methods/logAttributes.js)
+        entry: logAttributes
+    logMetadata(options):
+        code: $include(./methods/logMetadata.js)
+        entry: logMetadata
+    filterMethod(raw):
+        code: $include(./methods/filterMethod.js)
+        entry: filterMethod
+    filterNotes(ctx):
+        code: $include(./methods/filterNotes.js)
+        entry: filterNotes
+    showStoreList(data):
+        code: $include(./methods/showStoreList.js)
+        entry: showStoreList
+    recapAllOrder(ctx):
+        code: $include(./methods/recapAllOrder.js)
+        entry: recapAllOrder
+    recapOrderPartlyText(data):
+        code: $include(./methods/recapOrderPartlyText.js)
+        entry: recapOrderPartlyText
+    recapAllOrderFinal(data):
+        code: $include(./methods/recapAllOrderFinal.js)
+        entry: recapAllOrderFinal
+    deliveryMethod(data):
+        code: $include(./methods/deliveryMethod.js)
+        entry: deliveryMethod
+    getStoreId(ctx):
+        code: $include(./methods/getStoreId.js)
+        entry: getStoreId
+    getOrderId(ctx):
+        code: $include(./methods/getOrderId.js)
+        entry: getOrderId
+    validateStoreInput(ctx):
+        code: $include(./methods/validateStoreInput.js)
+        entry: validateStoreInput
+    getFareId(ctx):
+        code: $include(./methods/getFareId.js)
+        entry: getFareId
+    getPaymentMethod(ctx):
+        code: $include(./methods/getPaymentMethod.js)
+        entry: getPaymentMethod
+    addOrder(ctx):
+        code: $include(./methods/addOrder.js)
+        entry: addOrder
+    orderChooseMapping(ctx):
+        code: $include(./methods/orderChoosenMapping.js)
+        entry: orderChooseMapping
+    businessHours(ctx):
+        code: $include(./methods/businessHours.js)
+        entry: businessHours
+    mappingNotes(ctx):
+        code: $include(./methods/mappingNotes.js)
+        entry: mappingNotes
+    mappingBaristaNotes(ctx):
+        code: $include(./methods/mappingNotes.js)
+        entry: mappingBaristaNotes
+    changeOrderText(ctx):
+        code: $include(./methods/changeOrderText.js)
+        entry: changeOrderText
+    confirmChangeOrderText(data):
+        code: $include(./methods/changeOrderText.js)
+        entry: confirmChangeOrderText
+    changeOrDeleteText(ctx):
+        code: $include(./methods/changeOrderText.js)
+        entry: changeOrDeleteText
+    dataWithoutExtra(ctx):
+        code: $include(./methods/changeOrderText.js)
+        entry: dataWithoutExtra
+    mappingIndex(ctx):
+        code: $include(./methods/mappingIndex.js)
+        entry: mappingIndex
+    mappingIndex2(ctx):
+        code: $include(./methods/mappingIndex.js)
+        entry: mappingIndex2
+    deleteOrder(ctx):
+        code: $include(./methods/deleteOrder.js)
+        entry: deleteOrder
+    changeQuantity(ctx):
+        code: $include(./methods/changeQuantity.js)
+        entry: changeQuantity
+config:
+    maxRecursion: 10
+    apiBaseUrl: 'https://qios-order.kata.ai/v1'
+    merchantId: c172aa08-3a47-4734-9556-105cf5324718

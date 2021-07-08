@@ -1,0 +1,27 @@
+active: true
+volatile: true
+fallback: true
+intents:
+#Text
+    defaultIntent:
+        type: text
+        initial: false
+        fallback: true
+
+states:
+    init:
+        transitions:
+            init:
+                fallback: true
+        action:
+            name: fallbackText
+        initial: true
+        end: true
+
+actions:
+#Text
+    fallbackText:
+        type: text
+        options:
+            text: |-
+                Maaf, aku belum mengerti pesan kamu. Ketik lagi pesannya, ya

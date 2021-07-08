@@ -1,0 +1,607 @@
+active: true
+volatile: false
+intents:
+#Text
+    greetingIntent:
+        type: text
+        initial: true
+        priority: 10
+        classifier:
+            nlu: greeting
+    nameIntent:
+        type: text
+        classifier:
+            nlu: supermodel
+            match: person
+            options:
+                labels: true
+        attributes:
+            name:
+                nlu: supermodel
+                path: person
+    yesIntent:
+        type: text
+        classifier:
+            nlu: yesNoNL
+            match: yes
+    noIntent:
+        type: text
+        classifier:
+            nlu: noKeyword
+    menuIntent:
+        type: text
+        classifier:
+            nlu: menu
+    byeIntent:
+        type: text
+        initial: true
+        condition: "data.orderId"
+        classifier:
+            nlu: bye
+            match: bye
+    statusIntent:
+        type: text
+        initial: true
+        priority: 10
+        condition: "data.orderId"
+        classifier:
+            nlu: order
+
+#Command
+    toRegistIntent:
+        type: command
+        initial: true
+        condition: 'content=="toRegist"'
+    reenter:
+        type: command
+        condition: 'content=="reenter"'
+    nextIntent:
+        type: command
+        condition: 'content=="next"'
+    timeout55sIntent:
+        type: command
+        initial: true
+        condition: 'content=="userTimeOut55s"'    
+    timeout1Intent:
+        type: command
+        initial: true
+        condition: 'content=="userTimeOut1"'
+    timeout2Intent:
+        type: command
+        initial: true
+        condition: 'content=="userTimeOut2"'
+    timeout15Intent:
+        type: command
+        initial: true
+        condition: 'content=="userTimeOut15"'
+    byeCommandIntent:
+        type: command
+        condition: content == "bye"
+
+#data
+    dataIntent:
+        type: data
+        initial: true
+        condition: payload
+
+#Others
+    reset:
+        type: text
+        classifier:
+            nlu: reset
+    freetext:
+        type: text
+        initial: true
+        # condition: "data.orderId"
+        # fallback: true
+        priority: -100
+
+states:
+    init:
+        transitions:
+            greetingState:
+                condition: "!data.orderId"
+                mapping:
+                    data:
+                        # name: "'fadhiil'"
+                        # phone: "6283871323892"
+                        name: metadata.whatsappSenderName
+                        phone: metadata.whatsappSenderId
+            timeout1MinuteState:
+                condition: intent == "timeout1Intent"
+                mapping:
+                    context:
+                        count: "1"
+            timeout55sState:
+                condition: intent == "timeout55sIntent"
+            timeout2MinuteState:
+                condition: intent == "timeout2Intent" || intent == "timeout15Intent"
+            checkOrderStatusState:
+                condition: data.orderId
+        initial: true
+    greetingState:
+        action:
+            # - name: test
+            - name: addTimeOutScheduleStoreClose
+              condition: context.checker == "businessHours"
+            - name: greetingText
+              condition: context.checker == "businessHours"
+            - name: toLocationCommand
+              condition: context.checker == "businessHours"
+            - name: storeCloseText
+              condition: context.checker == "outsideBusinessHours"
+        end: true
+        enter: businessHours
+    timeout1MinuteState:
+        transitions:
+            paymentSucceedState:
+                condition: intent == "nextIntent" && (payload.result.status == "AWAITING_PROCESSING" || payload.result.status == "PROCESSING")
+            paymentFailedState:
+                condition: intent == "nextIntent" && payload.result.status == "EXPIRED"
+                mapping:
+                    context:
+                        result: payload.result.status
+            awaitingPaymentState:
+                condition: intent == "nextIntent" && (payload.result.status == "AWAITING_PAYMENT" || !payload.result.status)
+                mapping:
+                    data:
+                        count: data.count+1
+        action:
+            - name: removeTimeOutSchedule1
+            - name: addTimeOutSchedule1
+            - name: checkStatusAPI
+            - name: nextCommand
+        enter: parseTimeCheckout
+    timeout55sState:
+        transitions:
+            paymentSucceedState:
+                condition: intent == "nextIntent" && (payload.result.status == "AWAITING_PROCESSING" || payload.result.status == "PROCESSING")
+            cancelOrderState:
+                condition: intent == "nextIntent" && (payload.result.status == "EXPIRED" || payload.result.status == "AWAITING_PAYMENT" || !payload.result.status)
+        action:
+            - name: removeTimeOutSchedule55s
+            - name: checkStatusAPI
+            - name: nextCommand
+    timeout2MinuteState:
+        transitions:
+            orderDoneState:
+                condition: intent == "nextIntent" && (payload.result.status || !payload.result.status)
+                mapping:
+                    context:
+                        result: payload.result.status
+        action:
+            - name: removeTimeOutSchedule15
+            - name: removeTimeOutSchedule2
+            - name: addTimeOutSchedule2
+            - name: checkStatusAPI
+            - name: nextCommand
+        enter: parseTimeCheckout
+    orderDoneState:
+        action:
+            - name: unblock
+            - name: removeTimeOutSchedule2
+              condition: context.result=="DELIVERED"
+            - name: orderDoneText
+              condition: context.result=="DELIVERED"
+            - name: csatCommand
+              condition: context.result=="DELIVERED"
+        exit:
+            data:
+                count: "null"
+        enter: parseTimeCheckout
+        end: true
+    paymentSucceedState:
+        action:
+            - name: removeTimeOutSchedule1
+            - name: addTimeOutSchedule15
+            - name: statusOrderText
+        exit:
+            data:
+                count: "null"
+        enter: parseTimeCheckout
+        end: true
+    awaitingPaymentState:
+        action:
+            - name: unblock
+            # - name: testCount
+            - name: timeout7MinutesText
+              condition: data.count == 7
+            # - name: failedCheckOrderInfoText
+            #   condition: "!context.result && data.count == 10"
+        end: true
+    cancelOrderState:
+        transitions:
+            paymentFailedState:
+                condition: intent == "nextIntent"
+        action:
+            - name: cancelAPI
+            - name: nextCommand
+    paymentFailedState:
+        action:
+            - name: removeTimeOutSchedule1
+            # - name: test
+            - name: statusCancelledText
+        exit:
+            data:
+                date: "null"
+                reenter: "null"
+                # addressNotes: "null"
+                extraNotes: "null"
+                paymentMethod: "null"
+                shippingMethod: "null"
+                shippingPrice: "null"
+                rateId: "null"
+                finalMenu: "null"
+                order: "null"
+                orderId: "null"
+                storeId: "null"
+                deliveryMethod: "null"
+                allStore: "null"
+                retryHit: "null"
+                dataOrder: "null"
+                count: "null"
+                finalDataOrder: "null"
+                newArrayData: "null"
+                extraChoosen: "null"
+        end: true
+    # unblockState:
+    #     action:
+    #         - name: unblock
+    #     end: true
+    toLocationState:
+        action:
+            - name: toLocationCommand
+        exit:
+            mapping:
+                data:
+                    reenter: "null"
+        end: true
+    resetState:
+        transitions:
+            resetState:
+                fallback: true
+        action:
+            - name: toResetCommand
+        float:
+            condition: 'intent=="reset" || content == "reset"'
+        enter:
+            data:
+                lastName: metadata.whatsappSenderName
+        exit:
+            data:
+                waPhoneNumber: metadata.whatsappSenderId
+        end: true
+    checkOrderStatusState:
+        transitions:
+            orderStatusState:
+                condition: intent == "nextIntent" && payload.result.status != "EXPIRED"
+                mapping:
+                    context:
+                        result: payload.result.status
+            paymentFailedState:
+                condition: intent == "nextIntent" && payload.result.status == "EXPIRED"
+            failedCheckOrderState:
+                condition: intent == "nextIntent" && !payload.result.status
+        action:
+            - name: checkStatusAPI
+            - name: nextCommand
+    failedCheckOrderState:
+        action:
+            - name: failedCheckOrderInfoText
+        end: true
+    orderStatusState:
+        action:
+            - name: askToPayText
+              condition: context.result=="AWAITING_PAYMENT"
+            - name: awaitingProcessingText
+              condition: context.result=="AWAITING_PROCESSING"
+            - name: statusProcessingText
+              condition: context.result=="PROCESSING"
+            - name: statusShippedText
+              condition: context.result=="SHIPPED"
+            - name: orderDoneText
+              condition: context.result=="DELIVERED"
+            - name: csatCommand
+              condition: context.result=="DELIVERED"
+        end: true
+    # asktoPayState:
+    #     action:
+    #         - name: askToPayText
+    #     end: true
+    menuState:
+        transitions:
+            menuState:
+                fallback: true
+        action:
+            - name: toMenuCommand
+        float:
+            condition: 'intent=="menuIntent"'
+        end: true
+    byeState:
+        transitions:
+            cancelState:
+                condition: intent=="nextIntent"
+                mapping:
+                    context:
+                        result: payload.result.status
+        action:
+            # - name: byeText
+            - name: checkStatusAPI
+            - name: nextCommand
+        float:
+            condition: 'intent=="byeIntent"'
+        # enter:
+        #     data:
+        #         date: "null"
+        #         reenter: "null"
+        #         # addressNotes: "null"
+        #         extraNotes: "null"
+        #         paymentMethod: "null"
+        #         shippingMethod: "null"
+        #         shippingPrice: "null"
+        #         rateId: "null"
+        #         finalMenu: "null"
+        #         order: "null"
+        #         orderId: "null"
+        #         storeId: "null"
+        #         deliveryMethod: "null"
+        #         allStore: "null"
+        #         retryHit: "null"
+    cancelState:
+        action:
+            - name: removeTimeOutSchedule1
+            - name: cancelAPI
+              condition: context.result=="AWAITING_PAYMENT"
+            - name: toByeCommand
+              condition: context.result=="AWAITING_PAYMENT" || context.result=="CANCELLED"
+            - name: cantCancelText
+              condition: context.result=="AWAITING_PROCESSING" || context.result=="SHIPPED" || context.result=="PROCESSING"
+            - name: csatCommand
+              condition: context.result=="DELIVERED"
+        end: true
+
+actions:
+#Text
+    failedCheckOrderInfoText:
+        type: text
+        options:
+            text: |-
+                Maaf, aku masih memproses pesanmu. Coba ketik *_status order_* lagi setelah beberapa saat 😉
+    cantCancelText:
+        type: text
+        options:
+            text: |-
+                Maaf, kamu tidak bisa membatalkan pesanan setelah pembayaran 😢
+    testCount:
+        type: text
+        options:
+            text: "count: $(data.count)"
+    test:
+        type: text
+        options:
+            text: "sekarang udah expired harusnya"
+            # text: "sekarang $(context.checker) || $(context.hour)"
+    test7:
+        type: text
+        options:
+            text: "masuk timout7 || https://api-chatcommerce.katalabs.io/v1/merchants/14d6d01a-ceac-4773-a455-a7451d670f51/stores/$(data.storeId)/orders/$(data.orderId) || prs: $(payload.result.status)"
+    test9:
+        type: text
+        options:
+            text: "masuk timout9 || https://api-chatcommerce.katalabs.io/v1/merchants/14d6d01a-ceac-4773-a455-a7451d670f51/stores/$(data.storeId)/orders/$(data.orderId) || prs: $(payload.result.status)"
+    testUnblock:
+        type: text
+        options:
+            text: "masuk unblock || prs: $(payload.result.status)"
+    greetingText:
+        type: text
+        options:
+            text: |-
+                Hi, Colleague! Aku Adam. Selamat datang di WhatsApp pesan-antar Tujuhari Coffee 😊
+    askNameText:
+        type: text
+        options:
+            text: Sebelum memesan, ini benar dengan kak $(data.name) kan?
+
+    askNameAgainText:
+        type: text
+        options:
+            text: $(cms.cci.registration.askNameAgainText.value)
+            cmsType: textarea
+    fallbacknameText:
+        type: text
+        options:
+            text: $(cms.cci.registration.fallbacknameText.value)
+            cmsType: textarea
+    fallbacknameText2:
+        type: text
+        options:
+            text: $(cms.cci.registration.fallbacknameText2.value)
+            cmsType: textarea
+    byeText:
+        type: text
+        options:
+            text: |-
+                Terima kasih sudah menghubungi WhatsApp Toko Kopi Tuku. Sampai bertemu lagi 😉
+    welcomeMessageText:
+        type: text
+        options:
+            text: |-
+                Hai kak $(data.name), selamat datang kembali! Ingin pesan apa hari ini?
+    askToPayText:
+        type: text
+        options:
+            text: |-
+                Sepertinya $(data.name) belum melakukan pembayaran, nih. Selesaikan pesanan dulu baru kita ngobrol lagi ✨
+    timeout7MinutesText:
+        type: text
+        options:
+            text: Wah, udah hampir 10 menit. Yuk, proses pembayaran agar pesanan tidak batal 😢
+    timeout9MinutesText:
+        type: text
+        options:
+            text: Yah, sayang sekali aku belum menerima pembayaran dan pesanan aku batalkan 😢
+    storeCloseText:
+        type: text
+        options:
+            text: |-
+                Yah, maaf $(data.name), saat ini toko sedang tutup. Jam operasional Tujuhari selama PPKM: 
+                Senin-Jumat: 9:00-19:00 
+                Sabtu-Minggu: 7:00-19:00
+    statusOrderText:
+        type: text
+        options:
+            text: |-
+                Hore! Pembayaran sudah aku terima dan pesanan sedang dalam proses. $(data.name) bisa ketik *_status order_* untuk lihat status pesanan ya 😊
+
+                _Jika terjadi kendala pada pemesanan, hubungi Tujuhari di $(data.phoneStore)_
+    awaitingProcessingText:
+        type: text
+        options:
+            text: |-
+                Pesanan $(data.name) saat ini masih *menunggu konfirmasi* dari Tujuhari Coffee. 
+
+                Ketik *_status order_* lagi setelah beberapa menit, ya
+    statusProcessingText:
+        type: text
+        options:
+            text: |-
+                Ok, status pesanan $(data.name) saat ini *sedang diproses*
+    statusShippedText:
+        type: text
+        options:
+            text: |-
+                Ok, status pesanan $(data.name) saat ini *dalam pengiriman.*
+
+                Kamu bisa melacak pengiriman melalui link yang kamu dapat di aplikasi kurir pilihanmu
+    orderDoneText:
+        type: text
+        options:
+            text: |-
+                Hore! Pesanan $(data.name) saat ini *sudah selesai* 🎉
+    statusCancelledText:
+        type: text
+        options:
+            text: |-
+                Yah, sayang sekali aku belum menerima pembayaran dan pesanan aku batalkan 😢
+
+#Command
+    nextCommand:
+        type: command
+        options:
+            command: next
+            payload:
+                result: $(result)
+    toByeCommand:
+        type: command
+        options:
+            command: toBye
+    toLocationCommand:
+        type: command
+        options:
+            command: toLocation
+    toMenuCommand:
+        type: command
+        options:
+            command: toMenu
+    toResetCommand:
+        type: command
+        options:
+            command: toReset
+    logMetadata:
+        type: method
+        method: logMetadata
+    csatCommand:
+        type: command
+        options:
+            command: toCSAT
+    byeCommand:
+        type: command
+        options:
+            command: bye
+
+#API
+    cancelAPI:
+        type: api
+        options:
+            uri: "$(config.apiBaseUrl)/merchants/$(config.merchantId)/stores/$(data.storeId)/orders/cancel"
+            method: POST
+            body:
+                cancel: true
+                orderId: $(data.orderId)
+    checkStatusAPI:
+        type: api
+        options:
+            # uri: "https://api-chatcommerce.katalabs.io/v1/merchants/14d6d01a-ceac-4773-a455-a7451d670f51/stores/$(data.storeId)/orders/$(data.orderId)"
+            uri: "$(config.apiBaseUrl)/merchants/$(config.merchantId)/stores/$(data.storeId)/orders/$(data.orderId)"
+            method: GET
+
+#Other
+    removeTimeOutSchedule1:
+        type: schedule
+        options:
+            id: userTimeOut1
+            command: remove
+    removeTimeOutSchedule55s:
+        type: schedule
+        options:
+            id: userTimeOut55s
+            command: remove
+    removeTimeOutSchedule2:
+        type: schedule
+        options:
+            id: userTimeOut2
+            command: remove
+    removeTimeOutSchedule15:
+        type: schedule
+        options:
+            id: userTimeOut15
+            command: remove
+    addTimeOutScheduleStoreClose:
+        type: schedule
+        options:
+            id: timeOutStoreClose
+            command: add
+            freqInterval: 10
+            freqType: minute
+            start: $(context.parsedTimeClose)
+            end: $(context.parsedTimeClose)
+            message:
+                type: command
+                content: timeOutStoreClose
+    addTimeOutSchedule1:
+        type: schedule
+        options:
+            id: userTimeOut1
+            command: add
+            # freqInterval: 10
+            freqType: minute
+            start: $(context.parsedTime1)
+            end: $(context.parsedTime1)
+            message:
+                type: command
+                content: userTimeOut1
+    addTimeOutSchedule2:
+        type: schedule
+        options:
+            id: userTimeOut2
+            command: add
+            # freqInterval: 10
+            freqType: minute
+            start: $(context.parsedTime2)
+            end: $(context.parsedTime2)
+            message:
+                type: command
+                content: userTimeOut2
+    addTimeOutSchedule15:
+        type: schedule
+        options:
+            id: userTimeOut15
+            command: add
+            # freqInterval: 10
+            freqType: minute
+            start: $(context.parsedTime15)
+            end: $(context.parsedTime15)
+            message:
+                type: command
+                content: userTimeOut15

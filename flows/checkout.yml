@@ -1,0 +1,772 @@
+active: true
+volatile: false
+intents:
+#Text
+    # bypassIntent:
+    #     type: text
+    #     priority: 40
+    #     initial: true
+    #     condition: content == "bypasss"
+    yesIntent:
+        type: text
+        classifier:
+            nlu: yesNoNL
+            match: yes
+    noIntent:
+        type: text
+        classifier:
+            nlu: noKeyword
+    byeIntent:
+        type: text
+        classifier:
+            nlu: bye
+            match: bye
+    emailIntent:
+        type: text
+        priority: 10
+        classifier:
+            nlu: emailRegex
+        attributes:
+            email:
+                nlu: emailRegex
+    phoneIntent:
+        type: text
+        priority: 10
+        classifier:
+            nlu: phoneRegex
+        condition: context.$state == "askPhoneState"
+    nameIntent:
+        type: text
+        priority: 10
+        condition: context.$state == "askNameState"
+        classifier:
+            nlu: supermodel
+            match: person
+            options:
+                labels: true
+        attributes:
+            name:
+                nlu: supermodel
+                path: person
+    numberIntent:
+        type: text
+        classifier:
+            nlu: numberKeyword
+        attributes:
+            number:
+                nlu: numberKeyword
+    baristaNotesIntent:
+        type: text
+        condition: context.$state == "baristaNotesState"
+
+#Command
+    nextIntent:
+        type: command
+        condition: 'content=="next"'
+    byeIntentCommand:
+        type: command
+        condition: 'content=="timeoutAPI"'
+    checkoutIntent:
+        type: command
+        initial: true
+        condition: 'content == "checkout"'
+    timeOutIntent:
+        type: command
+        condition: 'content == "userTimeOut"'
+    storeCloseIntent:
+        type: command
+        condition: 'content == "timeOutStoreClose" || content == "storeClosed"'
+
+#Others
+    reset:
+        type: text
+        classifier:
+            nlu: reset
+    reenter:
+        type: command
+        priority: -10
+        condition: 'content=="reenter"'
+    textfree:
+        type: text
+        fallback: true
+        priority: -100
+
+states:
+    init:
+        transitions:
+            getDeliveryMethodState:
+                fallback: true
+                mapping:
+                    data:
+                        reenter: "null"
+        initial: true
+    getDeliveryMethodState:
+        transitions:
+            failedGetDeliveryMethodState:
+                condition: intent == "nextIntent" && !payload.result
+            deliveryMethodState:
+                condition: intent == "nextIntent" && payload.result
+                mapping:
+                    context:
+                        firstResult: payload.result.data[0].name
+                    data:
+                        reenter: "null"
+                        deliveryMethod: payload.result
+        action:
+            - name: getFaresAPI
+            - name: nextCommand
+    deliveryMethodState:
+        transitions:
+            getFareDetail:
+                condition: intent == "numberIntent"
+                mapping:
+                    context:
+                        chooseFare: attributes.number
+                    data:
+                        reenter: "null"
+            deliveryMethodState:
+                fallback: true
+        action:
+            - name: removeTimeOutSchedule
+              condition: "!data.reenter"
+            - name: addTimeOutSchedule
+              condition: "!data.reenter"
+            - name: deliveryMethodText
+              condition: "!data.reenter"
+            - name: deliveryMethodFallbackText
+              condition: data.reenter
+        # exit:
+        #     data:
+        #         deliveryMethod: payload.result
+        enter: parseTime
+        transit:
+            data:
+                reenter: "'true'"
+    failedGetDeliveryMethodState:
+        transitions:
+            getDeliveryMethodState:
+                condition: intent == "yesIntent" || (intent == "numberIntent" && attributes.number == "1")
+            byeState:
+                condition: intent == "noIntent"  || (intent == "numberIntent" && attributes.number == "2")
+            failedGetDeliveryMethodState:
+                fallback: true
+        action:
+            - name: retryGetDeliveryMethodText
+    getFareDetail:
+        transitions:
+            askEmailState:
+                condition: intent == "nextIntent" && !data.email && data.chooseFareValid
+            baristaNotesState:
+                condition: intent == "nextIntent" && data.email && data.chooseFareValid
+            deliveryMethodState:
+                condition: intent == "nextIntent" && !data.chooseFareValid
+                mapping:
+                    data:
+                        reenter: "'true'"
+        action:
+            - name: nextCommand
+        enter: getFareId
+    askEmailState:
+        transitions:
+            baristaNotesState:
+                condition: intent=="emailIntent"
+                mapping:
+                    data:
+                        email: content
+                        reenter: "null"
+            getDeliveryMethodState:
+                condition: content == "00"
+                mapping:
+                    data:
+                        reenter: "null"
+            askEmailState:
+                fallback: true
+                mapping:
+                    data:
+                        reenter: "'true'"
+        action:
+            - name: askEmailText
+              condition: "!data.reenter"
+            - name: askEmailFallbackText
+              condition: "data.reenter"
+    baristaNotesState:
+        transitions:
+            getDeliveryMethodState:
+                condition: content == "00"
+                fallback: true
+            recapOrderFinalState:
+                condition: intent == "baristaNotesIntent"
+                mapping: mappingBaristaNotes
+            baristaNotesState:
+                fallback: true
+        action:
+            - name: baristaNotesText
+    askNameState:
+        transitions:
+            askPhoneState:
+                condition: 'intent=="nameIntent"'
+                mapping:
+                    data:
+                        recipientName: attributes.name
+                        reenter: "null"
+            recapOrderFinalState:
+                condition: content == "00"
+            askNameState:
+                fallback: true
+                mapping:
+                    data:
+                        reenter: "'true'"
+        action:
+            - name: askNameText
+    askPhoneState:
+        transitions:
+            changeEmailState:
+                condition: intent=="phoneIntent"
+                mapping:
+                    data:
+                        recipientPhone: content
+                        reenter: "null"
+            askNameState:
+                condition: content == "00"
+            askPhoneState:
+                fallback: true
+                mapping:
+                    data:
+                        reenter: "'true'"
+        action:
+            - name: askPhoneText
+    changeEmailState:
+        transitions:
+            paymentMethodState:
+                condition: intent=="emailIntent"
+                mapping:
+                    data:
+                        email: content
+                        reenter: "null"
+                    context:
+                        changeData: "'true'"
+            askPhoneState:
+                condition: content == "00"
+            changeEmailState:
+                fallback: true
+                mapping:
+                    data:
+                        reenter: "'true'"
+        action:
+            - name: changeEmailText
+    recapOrderFinalState:
+        transitions:
+            paymentMethodState:
+                condition: intent == "numberIntent" && attributes.number == "1"
+                mapping:
+                    data:
+                        recipientName: metadata.whatsappSenderName
+                        recipientPhone: metadata.whatsappSenderId
+                        reenter: "null"
+                    context:
+                        changeData: "null"
+            askNameState:
+                condition: intent == "numberIntent" && attributes.number == "2"
+                mapping:
+                    data:
+                        reenter: "null"
+            baristaNotesState:
+                condition: content == "00" || intent == "nextIntent"
+            recapOrderFinalState:
+                fallback: true
+                mapping:
+                    data:
+                        reenter: "'true'"
+        action:
+            - name: recapOrderFinalText
+              condition: context.validateBaristaNotes
+            - name: nextCommand
+              condition: "!context.validateBaristaNotes"
+        transit:
+            data:
+                reenter: "'true'"
+    # enable this state ketika ingin ada pilihan payment method
+    paymentMethodState:
+        transitions:
+            finalizeOrderState:
+                condition: intent == "numberIntent" && (attributes.number == "1" || attributes.number == "2")
+                mapping:
+                    context:
+                        choosePayment: content
+                    data:
+                        reenter: "null"
+            paymentMethodState:
+                fallback: true
+                mapping:
+                    data:
+                        reenter: "'true'"
+        action:
+            - name: paymentMethodText
+    finalizeOrderState:
+        transitions:
+            paymentGopayState:
+                condition: intent == "nextIntent" && payload.result && (data.paymentMethod == "GOPAY" || data.paymentMethod == "DANA")
+            paymentOvoState:
+                condition: intent == "nextIntent" && payload.result && (data.paymentMethod == "OVO"  || data.paymentMethod == "LINKAJA")
+            # paymentBankTransferState:
+            #     condition: intent == "nextIntent" && payload.result && data.paymentMethod == "BANKTRANSFER"
+            failedOrderState:
+                condition: intent == "nextIntent"
+        action:
+            # - name: printFinalizeOrder
+            - name: successChangedText
+              condition: context.changeData
+            - name: finalizeOrderAPI
+            - name: nextCommand
+        enter: getPaymentMethod
+    failedOrderState:
+        transitions:
+            finalizeOrderState:
+                condition: intent == "yesIntent" || (intent == "numberIntent" && attributes.number == "1")
+            byeState:
+                condition: intent == "noIntent"  || (intent == "numberIntent" && attributes.number == "2")
+            failedOrderState:
+                fallback: true
+        action:
+            # - name: removeTimeOutSchedule
+            # - name: removeTimeOutScheduleStoreClose
+            - name: retryCreateOrderText
+    paymentGopayState:
+        action:
+            - name: removeTimeOutSchedule
+            - name: removeTimeOutScheduleStoreClose
+            - name: addTimeOutSchedule1
+              condition: "!context.storeClosed"
+            - name: paymentGopayText
+              condition: "!context.storeClosed"
+            - name: storeClosedCommand
+              condition: context.storeClosed
+        end: true
+        enter: parseTimeCheckout
+    paymentOvoState:
+        action:
+            - name: removeTimeOutSchedule
+            - name: removeTimeOutScheduleStoreClose
+            - name: addTimeOutSchedule55s
+            - name: paymentOvoText
+              condition: data.paymentMethod == "OVO"
+            - name: paymentLinkAjaText
+              condition: data.paymentMethod == "LINKAJA"
+        end: true
+        enter: parseTimeCheckout
+    # paymentBankTransferState:
+    #     action:
+    #         - name: removeTimeOutSchedule
+    #         - name: removeTimeOutScheduleStoreClose
+    #         - name: addTimeOutSchedule1
+    #         - name: BankTransferText
+    #     end: true
+    #     enter: parseTimeCheckout
+    reset:
+        transitions:
+            reset:
+                fallback: true
+        action: toReset
+        float:
+            condition: 'intent=="reset"'
+        exit:
+            data:
+                waPhoneNumber: metadata.whatsappSenderId
+        end: true
+    byeState:
+        action:
+            - name: removeTimeOutSchedule
+            - name: removeTimeOutScheduleStoreClose
+            - name: byeText
+        end: true
+        enter:
+            data:
+                date: "null"
+                reenter: "null"
+                extraNotes: "null"
+                paymentMethod: "null"
+                shippingMethod: "null"
+                shippingPrice: "null"
+                rateId: "null"
+                finalMenu: "null"
+                order: "null"
+                orderId: "null"
+                storeId: "null"
+                deliveryMethod: "null"
+                allStore: "null"
+                retryHit: "null"
+                dataOrder: "null"
+                extraChoosen: "null"
+    cancelState:
+        action:
+            - name: cancelAPI
+            - name: toByeCommand
+        float:
+            condition: 'intent=="byeIntent" || intent=="timeOutIntent"'
+        end: true
+    storeCloseState:
+        action:
+            - name: removeTimeOutSchedule
+            - name: removeTimeOutScheduleStoreClose
+            - name: storeCloseText
+        float:
+            condition: 'intent=="storeCloseIntent"'
+        end: true
+        enter:
+            data:
+                date: "null"
+                reenter: "null"
+                extraNotes: "null"
+                paymentMethod: "null"
+                shippingMethod: "null"
+                shippingPrice: "null"
+                rateId: "null"
+                finalMenu: "null"
+                order: "null"
+                orderId: "null"
+                storeId: "null"
+                deliveryMethod: "null"
+                allStore: "null"
+                retryHit: "null"
+            context:
+                storeClosed: "'true'"
+
+actions:
+#Text
+    retryGetDeliveryMethodText:
+        type: text
+        options:
+            text: |-
+                Maaf, aku belum memproses pilihanmu 😔. Apa $(data.name) mau menginput pesanan lagi?
+
+                1. Ya, input pesanan
+                2. Nggak, batal pesan
+    testAja:
+        type: text
+        options:
+            text: "$(data.name) & $(data.phone)"
+    paymentMethodText:
+        type: text
+        options:
+            text: |-
+                Mau bayar pakai apa nih, $(data.name)?
+
+                1. GoPay
+                2. OVO
+    successChangedText:
+        type: text
+        options:
+            text: |-
+                Ok. Data pemesan sudah berubah👍
+
+                *Pengiriman*
+
+                Nama: $(data.recipientName)
+                No. telepon: $(data.recipientPhone)
+                Alamat: $(data.addressNotes)
+                Email: $(data.email)
+    paymentMethod2Text:
+        type: text
+        options:
+            text: "Kamu bisa lakukan pembayaran melalui link di bawah ini ya, link hanya berlaku selama 10 menit\n\n$(context.paymentUrl) (tulis: `done`) || $(data.deliveryMethod.data[0].name)"
+    test:
+        type: text
+        options:
+            text: "Test-data ||payload.result: $(payload.result) || context.chooseFare: $(context.chooseFare) || context.choosePayment: $(context.choosePayment) || link: https://api-chatcommerce.katalabs.io/v1/merchants/14d6d01a-ceac-4773-a455-a7451d670f51/stores/$(data.storeId)/orders/$(data.orderId)"
+    confirimPhoneFallbackText:
+        type: text
+        options:
+            text: |-
+                Maaf, aku belum mengerti pesanmu. Benar $(data.waPhoneNumber) nomor teleponmu?
+
+                Ketik *YA* jika benar atau *TIDAK* jika ingin mengganti nomor telepon
+    askPhoneText:
+        type: text
+        options:
+            text: |-
+                Ketik nomor telepon pemesan yang bisa dihubungi
+
+                💡_Contoh: 08123456789_
+                atau *ketik 00 untuk kembali*
+    askPhoneFallbackText:
+        type: text
+        options:
+            text: |-
+                Sepertinya nomor yang kamu masukkan belum valid. Coba ketik lagi, ya
+
+                💡_Contoh: 08123456789_
+    askNameText:
+        type: text
+        options:
+            text: |-
+                Tulis nama pemesannya, ya
+
+                atau *ketik 00 untuk kembali*
+    askEmailText:
+        type: text
+        options:
+            text: |-
+                Tulis email $(data.name) dulu, ya 
+
+                💡 _Contoh: halo@tujuhari.com_
+    askEmailFallbackText:
+        type: text
+        options:
+            text: |-
+                Yah, sepertinya email yang kamu tulis belum sesuai. Coba ketik lagi ya 😊
+
+                💡 _Contoh: halo@tujuhari.com_
+    changeEmailText:
+        type: text
+        options:
+            text: |-
+                Ketik email pemesan
+
+                💡 _Contoh: halo@tujuhari.com_
+                atau *ketik 00 untuk kembali*
+    paymentGopayText:
+        type: text
+        options:
+            text: |-
+                Klik link di bawah ini untuk membayar 👇
+
+                $(payload.result.url)
+
+                *Pembayaran atas nama Qios dan pastikan saldo GoPay cukup, ya. Link hanya bisa digunakan 1 kali dan berlaku selama 10 menit*
+    paymentOvoText:
+        type: text
+        options:
+            text: |-
+                Aku udah mengirim notifikasi pembayaran ke OVO kamu. Lanjutkan pembayaran di aplikasi OVO kamu, ya
+
+                *Notifikasi pembayaran hanya berlaku 55 detik dan hanya bisa digunakan 1 kali*
+    paymentLinkAjaText:
+        type: text
+        options:
+            text: |-
+                Aku udah mengirim notifikasi pembayaran ke LinkAja $(data.name). Lanjutkan pembayaran di aplikasi LinkAja ya 😊
+    BankTransferText:
+        type: text
+        options:
+            text: |-
+                Lakukan pembayaran ke rekening di bawah ini ya, $(data.name)
+                $(payload.result.details.bankName)
+                $(payload.result.details.bankCode) $(payload.result.details.accountNumber)
+                atas nama $(payload.result.details.displayName)
+    orderDoneText:
+        type: text
+        options:
+            text: Hore! Pesanan kamu saat ini sudah selesai 🎉
+    retryCreateOrderText:
+        type: text
+        options:
+            text: |-
+                Maaf, pesanan gagal 😔. Apa $(data.name) mau pesan lagi?
+
+                1. Ya, pesan ulang
+                2. Nggak dulu
+    byeText:
+        type: text
+        options:
+            text: |-
+                Terima kasih sudah menghubungi WhatsApp Tujuhari. Sampai bertemu lagi 😉
+    printAttributes:
+        type: text
+        options:
+            text: "printAttributes --> $(data.finalMenu)"
+    deliveryMethodFallbackText:
+        type: text
+        options:
+            text: |-
+                Pilih dulu kurir pengiriman yang $(data.name) mau ya. 
+
+                Contoh: _Ketik 1 untuk kirim via $(context.firstResult)_
+    storeCloseText:
+        type: text
+        options:
+            text: |-
+                Yah, maaf $(data.name), saat ini toko sedang tutup. Jam operasional Tujuhari selama PPKM: 
+                Senin-Jumat: 9:00-19:00 
+                Sabtu-Minggu: 7:00-19:00
+    baristaNotesText:
+        type: text
+        options:
+            text: |-
+                Ada catatan tambahan untuk Barista? Langsung ketik catatannya ya. Maksimal 140 karakter dan hanya berupa text 😊
+
+                1. Tidak ada catatan dan lanjut isi data
+                00. Kembali
+
+#Command
+    nextCommand:
+        type: command
+        options:
+            command: next
+            payload:
+                result: $(result)
+    byeCommand:
+        type: command
+        option:
+            command: timeoutAPI
+    toReset:
+        type: command
+        options:
+            command: toReset
+    toByeCommand:
+        type: command
+        options:
+            command: toBye
+
+    csatCommand:
+        type: command
+        options:
+            command: toCSAT
+    gotoOrderCommand:
+        type: command
+        options:
+            command: toMenu
+    storeClosedCommand:
+        type: command
+        options:
+            command: storeClosed
+
+#API
+    cancelAPI:
+        type: api
+        options:
+            uri: "$(config.apiBaseUrl)/merchants/$(config.merchantId)/stores/$(data.storeId)/orders/cancel"
+            method: POST
+            body:
+                cancel: true
+                orderId: $(data.orderId)
+    getFaresAPI:
+        type: api
+        options:
+            uri: "$(config.apiBaseUrl)/merchants/$(config.merchantId)/stores/$(data.storeId)/orders/fares"
+            method: POST
+            body:
+                # longitude: 106.815848
+                # latitude: -6.263208
+                # price: 48000
+                longitude: $(data.longitudeUser)
+                latitude: $(data.latitudeUser)
+                price: $(data.order.total)
+    finalizeOrderAPI:
+        type: api
+        options:
+            uri: "$(config.apiBaseUrl)/merchants/$(config.merchantId)/stores/$(data.storeId)/orders/pay"
+            method: POST
+            body:
+                name: $(data.name)
+                recipientName: $(data.recipientName)
+                phone: $(data.phone)
+                recipientPhone: $(data.recipientPhone)
+                # name: "nafi"
+                # recipientName: "nafi"
+                # phone: "085334663230"
+                # recipientPhone: "085334663230"
+                email: $(data.email)
+                address: $(data.addressNotes)
+                notes: $(data.baristaNotes)
+                # longitude: $(data.longitude)
+                # latitude: $(data.latitude)
+                longitude: $(data.longitudeUser)
+                latitude: $(data.latitudeUser)
+                paymentMethod: $(data.paymentMethod)
+                shippingType: $(data.shippingType)
+                shippingMethod: $(data.shippingMethod)
+                ShippingPrice: $(data.shippingPrice)
+                rateId: $(data.rateId)
+                orderId: $(data.orderId)
+    printFinalizeOrder:
+        type: text
+        options:
+            text: |-
+                name: $(data.name)
+                recipientName: $(data.recipientName)
+                phone: $(data.phone)
+                recipientPhone: $(data.recipientPhone)
+                address: $(data.addressNotes)
+                notes: $(data.extraNotes)
+                longitude: $(data.longitudeUser)
+                latitude: $(data.latitudeUser)
+                paymentMethod: $(data.paymentMethod)
+                shippingType: $(data.shippingType)
+                shippingMethod: $(data.shippingMethod)
+                ShippingPrice: $(data.shippingPrice)
+                rateId: $(data.rateId)
+
+#Method
+    recapOrderFinalText:
+        type: method
+        method: recapAllOrderFinal
+    logAttributes:
+        type: method
+        method: logAttributes
+        options: {}
+    deliveryMethodText:
+        type: method
+        method: deliveryMethod
+    getFareId:
+        type: method
+        method: getFareId
+
+#Other
+    addTimeOutSchedule1:
+        type: schedule
+        options:
+            id: userTimeOut1
+            command: add
+            # freqInterval: 10
+            freqType: minute
+            start: $(context.parsedTime1)
+            end: $(context.parsedTime1)
+            message:
+                type: command
+                content: userTimeOut1
+    addTimeOutSchedule55s:
+        type: schedule
+        options:
+            id: userTimeOut55s
+            command: add
+            # freqInterval: 10
+            freqType: second
+            start: $(context.parsedTime55s)
+            end: $(context.parsedTime55s)
+            message:
+                type: command
+                content: userTimeOut55s
+    removeTimeOutSchedule:
+        type: schedule
+        options:
+            id: userTimeOut
+            command: remove
+    addTimeOutSchedule:
+        type: schedule
+        options:
+            id: userTimeOut
+            command: add
+            freqInterval: 10
+            freqType: minute
+            start: $(context.parsedTime)
+            end: $(context.parsedTimeEnd)
+            message:
+                type: command
+                content: userTimeOut
+    removeTimeOutScheduleStoreClose:
+        type: schedule
+        options:
+            id: timeOutStoreClose
+            command: remove
+    addTimeOutScheduleStoreClose:
+        type: schedule
+        options:
+            id: timeOutStoreClose
+            command: add
+            freqInterval: 10
+            freqType: minute
+            start: $(context.parsedTimeClose)
+            end: $(context.parsedTimeClose)
+            message:
+                type: command
+                content: timeOutStoreClose

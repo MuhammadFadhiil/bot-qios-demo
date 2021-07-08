@@ -1,0 +1,99 @@
+active: true
+volatile: true
+intents:
+#Text
+    orderstatus:
+        type: text
+        initial: true
+        fallback: false
+        classifier:
+            nlu: order
+            match: status
+        priority: 10
+
+states:
+    init:
+        transitions:
+            checkStatusApiStates:
+                fallback: true
+        initial: true
+    checkStatusApiStates:
+        action:
+            -
+                name: orderStatusApi
+            -
+                name: orderPendingText
+                condition: 'result.status == "pending"'
+            -
+                name: orderPaidText
+                condition: 'result.status == "paid"'
+            -
+                name: orderCanceledText
+                condition: 'result.status == "canceled"'
+            -
+                name: orderExpiredText
+                condition: 'result.status == "expired"'
+            -
+                name: orderSearchDriverText
+                condition: 'result.status == "search-driver"'
+            -
+                name: orderReceivedText
+                condition: 'result.status == "processing"'
+            -
+                name: orderCarriedText
+                condition: 'result.status == "courier"'
+            -
+                name: orderDeliveredText
+                condition: 'result.status == "delivered"'
+        end: true
+
+actions:
+#Text
+    orderPendingText:
+        type: text
+        options:
+            text: $(cms.cci.askOrderStatus.orderPendingText.value)
+            cmsType: textarea
+    orderPaidText:
+        type: text
+        options:
+            text: $(cms.cci.askOrderStatus.orderPaidText.value)
+            cmsType: textarea
+    orderExpiredText:
+        type: text
+        options:
+            text: $(cms.cci.askOrderStatus.orderExpiredText.value)
+            cmsType: textarea
+    orderCanceledText:
+        type: text
+        options:
+            text: $(cms.cci.askOrderStatus.orderCanceledText.value)
+            cmsType: textarea
+    orderReceivedText:
+        type: text
+        options:
+            text: $(cms.cci.askOrderStatus.orderReceivedText.value)
+            cmsType: textarea
+    orderCarriedText:
+        type: text
+        options:
+            text: $(cms.cci.askOrderStatus.orderCarriedText.value)
+            cmsType: textarea
+    orderDeliveredText:
+        type: text
+        options:
+            text: $(cms.cci.askOrderStatus.orderDeliveredText.value)
+            cmsType: textarea
+    orderSearchDriverText:
+        type: text
+        options:
+            text: 'Ok, status pesanan kamu saat ini *sedang mencari driver*'
+
+#API
+    orderStatusApi:
+        type: api
+        options:
+            uri: 'http://68.183.191.244:5001/order/status'
+            method: POST
+            body:
+                userId: $(data.userId)

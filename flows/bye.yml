@@ -1,0 +1,77 @@
+active: true
+volatile: false
+intents:
+#Command
+    toBye:
+        type: command
+        initial: true
+        condition: 'content=="toBye"'
+
+states:
+    init:
+        transitions:
+            bye:
+                fallback: true
+        initial: true
+    bye:
+        # transitions:
+        #     bye:
+        #         fallback: true
+        action:
+            - name: removeTimeOutSchedule
+            - name: removeTimeOutScheduleStoreClose
+            - name: byeText
+        enter:
+            data:
+                name: "null"
+                phone: "null"
+                date: "null"
+                # email: "null"
+                # longitude: "null"
+                # latitude: "null"
+                reset: "'true'"
+                reenter: "null"
+                # addressNotes: "null"
+                extraNotes: "null"
+                paymentMethod: "null"
+                shippingMethod: "null"
+                shippingPrice: "null"
+                rateId: "null"
+                finalMenu: "null"
+                order: "null"
+                retryHit: "null"
+                orderId: "null"
+                dataOrder: "null"
+                deliveryMethod: "null"
+                allStore: "null"
+                extraChoosen: "null"
+                count: "null"
+                finalDataOrder: "null"
+                newArrayData: "null"
+        end: true
+
+actions:
+#Text
+    byeText:
+        type: text
+        options:
+            text: |-
+                Terima kasih sudah menghubungi WhatsApp Tujuhari. Sampai bertemu lagi 😉
+
+#Command
+    toRegistCommand:
+        type: command
+        options:
+            command: toRegist
+
+#others
+    removeTimeOutSchedule:
+        type: schedule
+        options:
+            id: userTimeOut
+            command: remove
+    removeTimeOutScheduleStoreClose:
+        type: schedule
+        options:
+            id: timeOutStoreClose
+            command: remove

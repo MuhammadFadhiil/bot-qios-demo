@@ -1,0 +1,104 @@
+active: true
+volatile: false
+intents:
+#Command
+    toReset:
+        type: command
+        initial: true
+        condition: 'content=="toReset"'
+    reset:
+        type: text
+        initial: true
+        classifier:
+            nlu: reset
+
+states:
+    init:
+        transitions:
+            resetState:
+                fallback: true
+                mapping:
+                    data:
+                        reenter: "null"
+                        waPhoneNumber: metadata.whatsappSenderId
+        initial: true
+    resetState:
+        transitions:
+            {}
+            # toRegistState:
+            #     condition: 'intent=="greetingIntent"'
+            #     mapping:
+            #         data:
+            #             reenter: "null"
+            #             name: metadata.whatsappSenderName
+            # resetState:
+            #     fallback: true
+        action:
+            - name: removeTimeOutSchedule
+            - name: removeTimeOutScheduleStoreClose
+            - name: resetText
+            #   condition: "!data.reenter"
+            # - name: fallbackResetText
+            #   condition: data.reenter
+        enter:
+            data:
+                name: "null"
+                phone: "null"
+                date: "null"
+                email: "null"
+                longitudeUser: "null"
+                latitudeUser: "null"
+                # reset: "'true'"
+                reenter: "null"
+                addressNotes: "null"
+                extraNotes: "null"
+                paymentMethod: "null"
+                shippingMethod: "null"
+                shippingPrice: "null"
+                rateId: "null"
+                finalMenu: "null"
+                order: "null"
+                retryHit: "null"
+                orderId: "null"
+                dataOrder: "null"
+                deliveryMethod: "null"
+                allStore: "null"
+                firstTime: "null"
+                count: "null"
+                finalDataOrder: "null"
+                newArrayData: "null"
+                extraChoosen: "null"
+        end: true
+    # toRegistState:
+    #     action:
+    #         - name: toRegistCommand
+    #     end: true
+
+actions:
+#Text
+    resetText:
+        type: text
+        options:
+            text: 'Data Anda sudah berhasil di-reset. Ketik "Hi" untuk memulai obrolan.'
+    fallbackResetText:
+        type: text
+        options:
+            text: 'Maaf aku tidak paham maksud kamu, tolong ketik "Hi" ya :)'
+
+#Command
+    toRegistCommand:
+        type: command
+        options:
+            command: toRegist
+
+#others
+    removeTimeOutSchedule:
+        type: schedule
+        options:
+            id: userTimeOut
+            command: remove
+    removeTimeOutScheduleStoreClose:
+        type: schedule
+        options:
+            id: timeOutStoreClose
+            command: remove

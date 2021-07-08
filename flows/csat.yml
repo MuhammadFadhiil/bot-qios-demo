@@ -1,0 +1,171 @@
+active: true
+volatile: false
+intents:
+    # bypassIntent:
+    #     type: text
+    #     priority: 40
+    #     initial: true
+    #     condition: content == "bypasss"
+#Command
+    toCSAT:
+        type: command
+        priority: 5
+        initial: true
+        condition: content == "toCSAT"
+    reenter:
+        type: command
+        initial: false
+        fallback: false
+        condition: 'content=="reenter"'
+    nextIntent:
+        type: command
+        condition: 'content=="next"'
+
+#Other
+    textfree:
+        type: text
+        fallback: true
+        priority: -100
+    reset:
+        type: text
+        classifier:
+            nlu: reset
+
+states:
+    init:
+        transitions:
+            csatState:
+                fallback: true
+        initial: true
+    csatState:
+        transitions:
+            commentState:
+                condition: content == "1" || content == "2" || content == "3" || content == "4" || content == "5"
+                mapping:
+                    context:
+                        csatScore: content
+            csatState:
+                fallback: true
+        action:
+            - name: removeTimeOutSchedule2
+            - name: csatText
+        enter:
+            data:
+                dataOrder: "null"
+    commentState:
+        transitions:
+            storeCSAT:
+                mapping:
+                    context:
+                        feedback: content
+                fallback: true
+        action:
+            - name: commentText
+    storeCSAT:
+        transitions:
+            byeState:
+                condition: intent == "nextIntent"
+                fallback: true
+        action:
+            - name: removeTimeOutSchedule15
+            - name: removeTimeOutSchedule2
+            - name: csatAPI
+            # - name: test
+            - name: nextCommand
+    byeState:
+        action:
+            - name: byeText
+        end: true
+        exit:
+            data:
+                date: "null"
+                reenter: "null"
+                # addressNotes: "null"
+                extraNotes: "null"
+                paymentMethod: "null"
+                shippingMethod: "null"
+                shippingPrice: "null"
+                rateId: "null"
+                finalMenu: "null"
+                order: "null"
+                orderId: "null"
+                storeId: "null"
+                deliveryMethod: "null"
+                allStore: "null"
+                retryHit: "null"
+                count: "null"
+                finalDataOrder: "null"
+                newArrayData: "null"
+    resetState:
+        transitions:
+            resetState:
+                fallback: true
+        action: toResetCommand
+        float:
+            condition: 'intent=="reset"'
+        exit:
+            data:
+                waPhoneNumber: metadata.whatsappSenderId
+        end: true
+
+actions:
+#Text
+    test:
+        type: text
+        options:
+            text: "test"
+    csatText:
+        type: text
+        options:
+            text: |-
+                Gimana pengalaman $(data.name) menggunakan WhatsApp Tujuhari Coffee?
+                1. Sangat mengecewakan
+                2. Mengecewakan
+                3. Biasa saja
+                4. Puas
+                5. Sangat puas
+
+                💡 _Cukup ketik angka nilai pilihanmu ya_
+    commentText:
+        type: text
+        options:
+            text: "Ada kritik dan saran yang ingin $(data.name) sampaikan?"
+    byeText:
+        type: text
+        options:
+            text: |-
+                Terima kasih sudah menghubungi WhatsApp Tujuhari. Sampai bertemu lagi 😉
+
+#Command:
+    nextCommand:
+        type: command
+        options:
+            command: next
+    toResetCommand:
+        type: command
+        options:
+            command: toReset
+
+#API
+    csatAPI:
+        type: api
+        options:
+            uri: "$(config.apiBaseUrl)/merchants/$(config.merchantId)/csat"
+            method: POST
+            body:
+                score: $(context.csatScore)
+                notes: $(context.feedback)
+                orderId: $(data.orderId)
+                merchantId: $(config.merchantId)
+
+#Other
+    removeTimeOutSchedule2:
+        type: schedule
+        options:
+            id: userTimeOut2
+            command: remove
+    removeTimeOutSchedule15:
+        type: schedule
+        options:
+            id: userTimeOut15
+            command: remove

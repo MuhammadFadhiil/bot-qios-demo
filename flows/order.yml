@@ -1,0 +1,705 @@
+active: true
+volatile: false
+intents:
+#Text
+    # masterOrderNL:
+    #     type: text
+    #     priority: 5
+    #     classifier:
+    #         # - nlu: productDictNL
+    #         #   match: product
+    #         - nlu: qtyNL
+    #         - nlu: menuTujuhHari
+    #     attributes:
+    #         # product:
+    #         #     nlu: productDictNL
+    #         qty:
+    #             nlu: qtyNL
+    #         menu:
+    #             nlu: menuTujuhHari
+    #         # data:
+    #         #     nlu: rawNL
+    #     condition: context.$state == "introMenuState"
+    yesIntent:
+        type: text
+        classifier:
+            nlu: yesNoNL
+            match: yes
+    noIntent:
+        type: text
+        classifier:
+            nlu: noKeyword
+    byeIntent:
+        type: text
+        classifier:
+            nlu: bye
+            match: bye
+    numberIntent:
+        type: text
+        condition: context.$state != "askQuantityState" && context.$state != "introMenuState" && context.$state != "askUserWantToAddNotesState"
+        classifier:
+            nlu: numberKeyword
+        attributes:
+            number:
+                nlu: numberKeyword
+    numberRegex:
+        type: text
+        classifier:
+            nlu: numberRegex
+
+#Command
+    toMenuIntent:
+        type: command
+        initial: true
+        condition: content == "toMenu"
+    nextIntent:
+        type: command
+        condition: 'content=="next"'
+    timeOutIntent:
+        type: command
+        condition: 'content == "userTimeOut"'
+    storeCloseIntent:
+        type: command
+        condition: 'content == "timeOutStoreClose" || content == "storeClosed"'
+    allCompleted:
+        type: command
+        condition: 'content == "allCompleted"'
+
+#Others
+    reset:
+        type: text
+        classifier:
+            nlu: reset
+    reenter:
+        type: command
+        priority: -10
+        condition: 'content=="reenter"'
+    textfree:
+        type: text
+        condition: context.$state != "askQuantityState"
+        fallback: true
+        priority: -100
+
+states:
+    init:
+        transitions:
+            introMenuState:
+                fallback: true
+                mapping:
+                    data:
+                        reenter: "null"
+        initial: true
+    introMenuState:
+        transitions:
+            askQuantityState:
+                condition: content == "1" || content == "2" || content == "3" || content == "4" || content == "5" || content == "5" || content == "6" || content == "7" || content == "8"
+                mapping: orderChooseMapping
+            introMenuState:
+                fallback: true
+                mapping:
+                    data:
+                        reenter: "'true'"
+        action:
+            - name: removeTimeOutSchedule
+            - name: addTimeOutSchedule
+            - name: menuImage
+              condition: "!data.reenter"
+            - name: greetingMenuText
+              condition: "!data.reenter"
+            - name: fallbackMenuText
+              condition: "data.reenter"
+        enter: parseTime
+    askQuantityState:
+        transitions:
+            introMenuState:
+                condition: content == "00"
+            cekAvailabilityState:
+                condition: intent == "numberRegex"
+                mapping:
+                    data:
+                        qtyChoosen: content
+            askQuantityState:
+                fallback: true
+        action:
+            - name: askQuantityText
+    cekAvailabilityState:
+        transitions:
+            askUserWantToAddNotesState:
+                condition: 'intent == "nextIntent" && payload.result.availability && (data.orderChoosen == "7h1" || data.orderChoosen == "7h2" || data.orderChoosen == "7h3" || data.orderChoosen == "7h5")'
+                mapping:
+                    data:
+                        reenter: "null"
+            askNotesState:
+                condition: 'intent == "nextIntent" && payload.result.availability && (data.orderChoosen == "7h4" || data.orderChoosen == "7h6" || data.orderChoosen == "7h7" || data.orderChoosen == "7h8")'
+                mapping:
+                    data:
+                        reenter: "null"
+            orderUnavailableState:
+                condition: '!data.dataOrder && intent == "nextIntent" && !payload.result.availability'
+                mapping:
+                    data:
+                        reenter: "null"
+            orderPartlyState:
+                condition: 'data.dataOrder && intent == "nextIntent" && !payload.result.availability'
+                mapping:
+                    data:
+                        reenter: "null"
+        action:
+            # - name: test
+            - name: checkAvailabilityAPI
+            - name: nextCommand
+    askUserWantToAddNotesState:
+        transitions:
+            askNotesState:
+                condition: content == "1"
+                mapping:
+                    data:
+                        reenter: "null"
+                    context:
+                        notes1: "null"
+                        notes2: "null"
+            merchantConfirmState:
+                condition: content == "2"
+                mapping:
+                    data:
+                        notesChoosen: "'normal'"
+            askQuantityState:
+                condition: content == "00"
+            askUserWantToAddNotesState:
+                fallback: true
+        action:
+            - name: askUserWantToAddNotesText
+              condition: "!context.storeClosed"
+            - name: storeClosedCommand
+              condition: context.storeClosed
+    askNotesState:
+        transitions:
+            merchantConfirmState:
+                condition: intent == "allCompleted"
+                mapping: mappingNotes
+            askUserWantToAddNotesState:
+                condition: content == "00" && !context.notes1 && !context.notes2
+            askNotesState:
+                fallback: false
+                condition: intent == "numberIntent" || content == "00" || intent == "textfree"
+        action:
+            - name: allCompleted
+              condition: '!context.notes1 && !context.notes2 && (data.orderChoosen == "7h4" || data.orderChoosen == "7h6" || data.orderChoosen == "7h7" || data.orderChoosen == "7h8")'
+            - name: allCompleted #harian 220, harian coconut 220, harian 1L. menu with 3 notes
+              condition: context.notes1 && context.notes2 && (data.orderChoosen == "7h1" || data.orderChoosen == "7h2" || data.orderChoosen == "7h5")
+            - name: allCompleted #long black 220 menu with 1 notes
+              condition: context.notes1 && (data.orderChoosen == "7h3")
+            - name: askNotesText1 #ask sugar level
+              condition: '!context.notes1 && (data.orderChoosen == "7h1" || data.orderChoosen == "7h2" || data.orderChoosen == "7h5")'
+            - name: askNotesText2 #ask extra
+              condition: 'context.notes1 && !context.notes2 && (data.orderChoosen == "7h1" || data.orderChoosen == "7h2")'
+            - name: askNotesLongBlack
+              condition: '!context.notes1 && data.orderChoosen == "7h3"'
+            - name: askNotesHarian1LText #ask extra for kopi harian 1L
+              condition: 'context.notes1 && !context.notes2 && data.orderChoosen == "7h5"'
+        exit: mappingNotes
+    merchantConfirmState:
+        transitions:
+            orderAvailableState:
+                condition: content == "avail" || (intent == "nextIntent" && payload.result.allAvailable)
+                mapping:
+                    data:
+                        reenter: "null"
+                        order: payload.result
+            orderPartlyState:
+                condition: content == "partly" || (intent == "nextIntent" && payload.result.partiallyAvailable)
+                mapping:
+                    data:
+                        reenter: "null"
+            orderUnavailableState:
+                condition: content == "empty" || (intent == "nextIntent" && !payload.result.allAvailable && !payload.result.partiallyAvailable)
+                mapping:
+                    data:
+                        reenter: "null"
+            merchantConfirmState:
+                fallback: true
+        enter: addOrder
+        action:
+            - name: waitMerchantText
+            - name: checkOrderAPI
+            - name: nextCommand
+    orderAvailableState:
+        transitions:
+            createOrderState:
+                condition: intent=="numberIntent" && attributes.number == "1"
+                mapping:
+                    data:
+                        reenter: "null"
+            gotoOrderState:
+                condition: intent=="numberIntent" && attributes.number == "2"
+                mapping:
+                    data:
+                        reenter: "null"
+                        extraChoosen: "null"
+            gotoChangeOrderState:
+                condition: intent=="numberIntent" && attributes.number == "3"
+                mapping:
+                    data:
+                        reenter: "null"
+            orderAvailableState:
+                fallback: true
+        action:
+            - name: removeTimeOutSchedule
+            - name: addTimeOutSchedule
+            - name: recapOrderText
+              condition: "!context.storeClosed && !data.reenter"
+            - name: addOrderFallbackText
+              condition: "!context.storeClosed && data.reenter"
+            - name: storeClosedCommand
+              condition: context.storeClosed
+        enter: parseTime
+        transit:
+            data:
+                reenter: "'true'"
+    orderPartlyState:
+        transitions:
+            createOrderState:
+                condition: intent == "numberIntent" && attributes.number == "1"
+                mapping:
+                    data:
+                        reenter: "null"
+            gotoOrderState:
+                condition: intent=="numberIntent" && attributes.number == "2"
+                mapping:
+                    data:
+                        reenter: "null"
+                        extraChoosen: "null"
+            gotoChangeOrderState:
+                condition: intent=="numberIntent" && attributes.number == "3"
+                data:
+                    reenter: "null"
+            orderPartlyState:
+                fallback: true
+        action:
+            - name: removeTimeOutSchedule
+            - name: addTimeOutSchedule
+            - name: emptyOrderText
+              condition: "!context.storeClosed && !data.reenter"
+            - name: recapOrderPartlyText
+              condition: "!context.storeClosed && !data.reenter"
+            - name: addOrderFallbackText
+              condition: "!context.storeClosed && data.reenter"
+            - name: storeClosedCommand
+              condition: context.storeClosed
+        enter: parseTime
+        transit:
+            data:
+                reenter: "'true'"
+    orderUnavailableState:
+        transitions:
+            gotoOrderState:
+                condition: '!payload.result.allAvailable || !payload.result.partiallyAvailable || intent == "nextIntent"'
+                mapping:
+                    data:
+                        reenter: "null"
+                        extraChoosen: "null"
+        action:
+            - name: emptyOrderText
+              condition: "!context.storeClosed"
+            - name: nextCommand
+              condition: "!context.storeClosed"
+            - name: storeClosedCommand
+              condition: context.storeClosed
+        exit:
+            data:
+                finalMenu: "null"
+    gotoChangeOrderState:
+        action:
+            - name: gotoChangeOrderCommand
+        end: true
+    gotoOrderState:
+        action:
+            - name: gotoOrderCommand
+        end: true
+    createOrderState:
+        transitions:
+            toCheckoutState:
+                condition: intent == "nextIntent" && payload.result
+                mapping:
+                    data:
+                        orderId: payload.result.id
+            failedCreateOrderState:
+                condition: intent == "nextIntent" && !payload.result
+                # fallback: true
+        action:
+            # - name: test
+            - name: rewriteOrderAPI
+              condition: data.orderId
+            - name: createOrderAPI
+              condition: "!data.orderId"
+            - name: nextCommand
+    failedCreateOrderState:
+        transitions:
+            createOrderState:
+                condition: intent == "numberIntent" && attributes.number == "1"
+            byeState:
+                condition: intent == "numberIntent" && attributes.number == "2"
+            failedCreateOrderState:
+                fallback: true
+        action:
+            - name: retryCreateOrderText
+    toCheckoutState:
+        action:
+            - name: toCheckoutCommand
+        end: true
+    reset:
+        transitions:
+            reset:
+                fallback: true
+        action: toReset
+        float:
+            condition: 'intent=="reset"'
+        exit:
+            data:
+                waPhoneNumber: metadata.whatsappSenderId
+        end: true
+    byeState:
+        # transitions:
+        #     byeState:
+        #         fallback: true
+        action:
+            - name: toByeCommand
+        # float:
+        #     condition: 'intent=="byeIntent"'
+        end: true
+        enter:
+            data:
+                date: "null"
+                reenter: "null"
+                addressNotes: "null"
+                extraNotes: "null"
+                paymentMethod: "null"
+                shippingMethod: "null"
+                shippingPrice: "null"
+                rateId: "null"
+                finalMenu: "null"
+                order: "null"
+                orderId: "null"
+                storeId: "null"
+                deliveryMethod: "null"
+                allStore: "null"
+                retryHit: "null"
+                dataOrder: "null"
+    cancelState:
+        action:
+            # - name: removeTimeOutSchedule
+            # - name: removeTimeOutScheduleStoreClose
+            # - name: byeText
+            - name: cancelAPI
+              condition: data.orderId
+            - name: toByeCommand
+        float:
+            condition: 'intent=="byeIntent" || intent=="timeOutIntent"'
+        end: true
+    storeCloseState:
+        action:
+            - name: removeTimeOutSchedule
+            - name: removeTimeOutScheduleStoreClose
+            - name: storeCloseText
+        float:
+            condition: 'intent=="storeCloseIntent"'
+        end: true
+        enter:
+            data:
+                date: "null"
+                reenter: "null"
+                # addressNotes: "null"
+                extraNotes: "null"
+                paymentMethod: "null"
+                shippingMethod: "null"
+                shippingPrice: "null"
+                rateId: "null"
+                finalMenu: "null"
+                order: "null"
+                orderId: "null"
+                storeId: "null"
+                deliveryMethod: "null"
+                allStore: "null"
+                retryHit: "null"
+            context:
+                storeClosed: "'true'"
+
+actions:
+#Text
+    greetingMenuText:
+        type: text
+        options:
+            text: |-
+                Pilih menu yang mau $(data.name) pesan hari ini
+
+                1. Kopi Harian Botol 220 ml
+                2. Kopi Harian Coconut Botol 220 ml
+                3. Long Black Botol 220 ml
+                4. Express Shot 220 ml
+                5. Kopi Harian Literan
+                6. Cookies Latte Literan
+                7. Speculatte Literan
+                8. Matcha Latte Literan
+
+                💡 _Cukup ketik salah satu angka pilihan, ya_
+    introMenuText:
+        type: text
+        options:
+            text: |-
+                Kamu bisa memesan skt, tukucur, dll banyak pokoknya
+                1. SKT
+                2. blablabla
+                3. blablabla
+    addOrderFallbackText:
+        type: text
+        options:
+            text: Maaf, aku belum mengerti maksudmu. Kamu bisa ketik *1* lanjut pilih pengiriman, *2* tambah pesanan atau *3* ubah pesanan
+    askQuantityText:
+        type: text
+        options:
+            text: |-
+                Berapa banyak $(data.menuName) yang mau $(data.name) pesan?
+
+                💡 _Ketik angka saja, ya. Contoh: 3_
+                atau *ketik 00 untuk kembali*
+    notesFallbackText:
+        type: text
+        options:
+            text: |-
+                Maaf ya, aku belum mengerti catatan yang Kakak masukkan
+
+                💡 _Contoh: Kopi Susu Tetangga sedikit gula atau Kopi Hitam Tetangga extra gula aren_
+    askNotesText1:
+        type: text
+        options:
+            text: |-
+                Pilih level gula untuk $(data.qtyChoosen)x $(data.menuName)
+
+                1. Less sweet (gula sedikit)
+                2. Normal
+                00. Kembali
+
+                💡 _ketik angkanya, ya_
+    askNotesText2:
+        type: text
+        options:
+            text: |-
+                Pilih level coffee untuk $(data.qtyChoosen)x $(data.menuName)
+
+                1. Less coffee
+                2. Normal
+                3. Extra coffee (+ Rp12.000)
+                00. Kembali
+
+                💡 _ketik angkanya, ya_
+    askNotesHarian1LText:
+        type: text
+        options:
+            text: |-
+                Pilih level coffee untuk $(data.qtyChoosen)x $(data.menuName)
+
+                1. Less coffee
+                2. Normal
+                3. Extra coffee (+ Rp60.000)
+                00. Kembali
+
+                💡 _ketik angkanya, ya_
+    askNotesLongBlack:
+        type: text
+        options:
+            text: |-
+                Pilih level coffee untuk $(data.qtyChoosen)x $(data.menuName)
+
+                1. Less coffee
+                2. Normal
+                00. Kembali
+
+                💡 _ketik angkanya, ya_
+    addOrderText:
+        type: text
+        options:
+            text: |-
+                ya untuk lagi, tidak untuk lanjut
+    partlyOrderText:
+        type: text
+        options:
+            text: |-
+                Huhu, kamu hanya bisa memesan pesanan di bawah ini ⬇️
+                Apa kamu tetap ingin lanjutkan pesanan?
+    emptyOrderText:
+        type: text
+        options:
+            text: |-
+                Huhu $(data.menuName) lagi habis 😢
+    test:
+        type: text
+        options:
+            text: "prod: $(attributes.product[0].product) - $(attributes.product) - $(attributes.product[0]) || qty: $(attributes.qty.qty) || $(attributes.menu)"
+    confirmOrderText:
+        type: text
+        options:
+            text: Silakan ketik *YA* untuk untuk tambah pesanan atau ketik *tidak* untuk lanjut ke proses pengiriman dan pembayaran atau ketik *BATAL* jika ingin membatalkan pesananmu
+    waitMerchantText:
+        type: text
+        options:
+            text: Ok. Mohon tunggu sebentar ya, aku pastikan semua pesanan tersedia😉
+    fallbackMenuText:
+        type: text
+        options:
+            text: |-
+                Maaf, aku belum mengerti menu yang kamu maksud. Ketik angka menu pilihan aja ya.
+
+                💡 _Contoh: 1 untuk memesan Kopi Harian Botol 220 ml_
+    byeText:
+        type: text
+        options:
+            text: |-
+                Terima kasih sudah menghubungi WhatsApp Tujuhari. Sampai bertemu lagi 😉
+    printAttributes:
+        type: text
+        options:
+            text: "printAttributes --> $(attributes)"
+    storeCloseText:
+        type: text
+        options:
+            text: |-
+                Yah, maaf $(data.name), saat ini toko sedang tutup. Jam operasional Tujuhari selama PPKM: 
+                Senin-Jumat: 9:00-19:00 
+                Sabtu-Minggu: 7:00-19:00
+    askUserWantToAddNotesText:
+        type: text
+        options:
+            text: |-
+                Apa $(data.name) mau menambah catatan untuk $(data.qtyChoosen)x $(data.menuName)?
+
+                1. Ya
+                2. Tidak
+                00. Kembali
+    retryCreateOrderText:
+        type: text
+        options:
+            text: |-
+                Maaf, aku belum memproses pilihanmu 😔. Apa $(data.name) mau menginput pesanan lagi?
+
+                1. Ya, input pesanan
+                2. Nggak, batal pesan
+
+#Command
+    nextCommand:
+        type: command
+        options:
+            command: next
+            payload:
+                result: $(result)
+    toCheckoutCommand:
+        type: command
+        options:
+            command: checkout
+    toReset:
+        type: command
+        options:
+            command: toReset
+    toByeCommand:
+        type: command
+        options:
+            command: toBye
+    allCompleted:
+        type: command
+        options:
+            command: allCompleted
+    gotoChangeOrderCommand:
+        type: command
+        options:
+            command: toChangeOrder
+    gotoOrderCommand:
+        type: command
+        options:
+            command: toMenu
+    storeClosedCommand:
+        type: command
+        options:
+            command: storeClosed
+
+#API
+    rewriteOrderAPI:
+        type: api
+        options:
+            uri: "$(config.apiBaseUrl)/merchants/$(config.merchantId)/stores/$(data.storeId)/orders/$(data.orderId)"
+            method: PUT
+            body:
+                data: $(data.finalDataOrder)
+    cancelAPI:
+        type: api
+        options:
+            uri: "$(config.apiBaseUrl)/merchants/$(config.merchantId)/stores/$(data.storeId)/orders/cancel"
+            method: POST
+            body:
+                cancel: true
+                orderId: $(data.orderId)
+    checkOrderAPI:
+        type: api
+        options:
+            uri: "$(config.apiBaseUrl)/merchants/$(config.merchantId)/stores/$(data.storeId)/orders/check"
+            method: POST
+            body:
+                data: $(data.finalDataOrder)
+    createOrderAPI:
+        type: api
+        options:
+            uri: "$(config.apiBaseUrl)/merchants/$(config.merchantId)/stores/$(data.storeId)/orders"
+            method: POST
+            body:
+                data: $(data.finalDataOrder)
+    checkAvailabilityAPI:
+        type: api
+        options:
+            uri: "$(config.apiBaseUrl)/merchants/$(config.merchantId)/stores/$(data.storeId)/orders/availability"
+            method: POST
+            body:
+                name: $(data.orderChoosen)
+                qty: "$(data.qtyChoosen)"
+
+#Media
+    menuImage:
+        type: template
+        options:
+            type: image
+            items:
+                originalContentUrl: https://see-spaces.sgp1.digitaloceanspaces.com/chatcommerce/7hari/Image%20from%20iOS%20(9).jpg
+                previewImageUrl: https://see-spaces.sgp1.digitaloceanspaces.com/chatcommerce/7hari/Image%20from%20iOS%20(9).jpg
+
+#Method
+    recapOrderText:
+        type: method
+        method: recapAllOrder
+    recapOrderPartlyText:
+        type: method
+        method: recapOrderPartlyText
+    logAttributes:
+        type: method
+        method: logAttributes
+        options: {}
+
+#Others
+    removeTimeOutScheduleStoreClose:
+        type: schedule
+        options:
+            id: timeOutStoreClose
+            command: remove
+    removeTimeOutSchedule:
+        type: schedule
+        options:
+            id: userTimeOut
+            command: remove
+    addTimeOutSchedule:
+        type: schedule
+        options:
+            id: userTimeOut
+            command: add
+            freqInterval: 10
+            freqType: minute
+            start: $(context.parsedTime)
+            end: $(context.parsedTimeEnd)
+            message:
+                type: command
+                content: userTimeOut

@@ -1,0 +1,213 @@
+qtyNL:
+    type: nl
+    options:
+        nluId: "chatcommerce:tujuhari-bot"
+        threshold: 0.8
+        output: phrase
+        asIntent: ""
+        path: ""
+        entity: qty
+        label: true
+productDictNL:
+    type: nl
+    options:
+        nluId: "chatcommerce:tujuhari-bot"
+        threshold: 0.8
+        asIntent: ""
+        path: ""
+        output: phrase
+        entity: productTujuh
+        label: true
+rawNL:
+    type: nl
+    options:
+        nluId: "chatcommerce:cci-NL"
+        threshold: 0.8
+        output: raw
+    process: filterMethod
+notesNL:
+    type: nl
+    options:
+        nluId: "chatcommerce:cci-NL"
+        threshold: 0.8
+        output: raw
+yesNoNL:
+    type: nl
+    options:
+        nluId: "chatcommerce:cci-NL"
+        threshold: 0.8
+        output: raw
+        asIntent: yesno
+        path: ""
+supermodel:
+    type: nl
+    options:
+        nluId: "chatcommerce:cci"
+        threshold: 0.8
+        output: phrase
+        entity: kata
+phoneRegex:
+    type: regex
+    options:
+        regex: '\(?(?:\+|08|62)(?:\d{2,3})?\)?[ -]?\d{2,3}[ -]?\d{2,4}[ -]?\d{2,4}$'
+emailRegex:
+    type: regex
+    options:
+        # regex: '^(([^<>()\[\]\\.,;:\s@"]+(\.[^<>()\[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$'
+        regex: '^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$'
+numberRegex:
+    type: regex
+    options:
+        regex: "^[1-9][0-9]?$|^100$"
+greeting:
+    type: keyword
+    options:
+        keywords:
+            hi:
+                - hi
+                - hai
+                - hay
+                - halo
+                - hello
+                - hey
+                - order
+                - pesan
+                - mesen
+                - pesen
+                - memesan
+                - memesen
+                - mesan
+                - psn
+                - psan
+                - min
+                - admin
+                - Assalamualaikum
+                - hei
+                - hey
+                - test
+reset:
+    type: keyword
+    options:
+        keywords:
+            reset:
+                - reset
+                - "ganti data"
+menu:
+    type: keyword
+    options:
+        keywords:
+            menu:
+                - menu
+order:
+    type: keyword
+    options:
+        keywords:
+            status:
+                - "status order"
+                - "status ordr"
+                - "order status"
+                - "cek status"
+                - "cek order"
+                - "liat pesanan"
+                - "status pesanan"
+                - "status"
+
+bye:
+    type: keyword
+    options:
+        keywords:
+            bye:
+                - bye
+                - cancel
+                - batal
+                - membatalkan
+                - batalin
+                - btal
+noKeyword:
+    type: keyword
+    options:
+        keywords:
+            no:
+                - no
+                - tidak
+                - tdk
+                - gak
+                - ga
+                - engga
+                - ngga
+                - enggak
+                - nggak
+                - g
+                - nga
+                - ngak
+                - salah
+                - slah
+                - bukan
+                - bkn
+                - ubah
+                - ganti
+numberKeyword:
+    type: keyword
+    options:
+        keywords:
+            1:
+                - "1"
+            2:
+                - "2"
+            3:
+                - "3"
+            4:
+                - "4"
+            5:
+                - "5"
+            6:
+                - "6"
+            7:
+                - "7"
+            8:
+                - "8"
+            9:
+                - "9"
+            10:
+                - "10"
+            11:
+                - "11"
+            12:
+                - "12"
+            13:
+                - "13"
+menuTujuhHari:
+    type: keyword
+    options:
+        keywords:
+            7h1:
+                - "Harian 220ml"
+                - "Harian 220 ml"
+            7h2:
+                - "coconut"
+                - "Harian Coconut"
+            7h3:
+                - "Long Black"
+            7h4:
+                - "Harian Literan"
+                - "harian 1 liter"
+                - "harian 1l"
+                - "harian 1 l"
+            7h5:
+                - "matcha"
+                - "Matcha Latte"
+                # - "Matcha Latte Literan"
+                # - "Matcha Literan"
+                # - "Matcha 1l"
+                # - "Matcha 1 l"
+                # - "Matcha Latte 1 liter"
+paymentMethod:
+    type: keyword
+    options:
+        keywords:
+            gopay:
+                - "gopay"
+            dana:
+                - "dana"
+            ovo:
+                - "ovo"

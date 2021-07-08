@@ -1,0 +1,521 @@
+active: true
+intents:
+#Text
+    yesIntent:
+        type: text
+        classifier:
+            nlu: yesNoNL
+            match: yes
+    noIntent:
+        type: text
+        classifier:
+            nlu: noKeyword
+    byeIntent:
+        type: text
+        classifier:
+            nlu: bye
+            match: bye
+    numberIntent:
+        type: text
+        classifier:
+            nlu: numberKeyword
+        attributes:
+            number:
+                nlu: numberKeyword
+        condition: context.$state != "giveNearestStoreState"
+    numberRegex:
+        type: text
+        condition: context.$state == "giveNearestStoreState"
+        classifier:
+            nlu: numberRegex
+    addressIntent:
+        type: text
+        condition: context.$state == "askFullAddressState"
+
+#Command
+    toLocationIntent:
+        type: command
+        initial: true
+        fallback: false
+        condition: 'content=="toLocation"'
+    nextIntent:
+        type: command
+        condition: 'content == "next"'
+    reenter:
+        type: command
+        priority: -10
+        condition: 'content=="reenter"'
+    shareLocationIntent:
+        type: data
+        condition: 'payload.type=="location"'
+    timeOutIntent:
+        type: command
+        condition: 'content == "userTimeOut"'
+    storeCloseIntent:
+        type: command
+        condition: 'content == "timeOutStoreClose"'
+
+#Others
+    reset:
+        type: text
+        classifier:
+            nlu: reset
+    textfree:
+        type: text
+        fallback: true
+        priority: -100
+
+states:
+    init:
+        transitions:
+            confirmAddressState:
+                condition: data.longitudeUser && data.latitudeUser && data.addressNotes
+            askLocationState:
+                condition: "!data.longitudeUser || !data.latitudeUser || !data.addressNotes"
+                mapping:
+                    context:
+                        firstTime: "'true'"
+                    data:
+                        reenter: "null"
+        initial: true
+    confirmAddressState:
+        transitions:
+            getNearestStoreState:
+                condition: intent=="numberIntent" && attributes.number=="1"
+                mapping:
+                    context:
+                        saveAddress: "'true'"
+                        firstTime: "null"
+            askLocationState:
+                condition: intent=="numberIntent" && attributes.number=="2"
+                mapping:
+                    context:
+                        saveAddress: "null"
+                        firstTime: "'true'"
+            confirmAddressState:
+                fallback: true
+        action:
+            - name: removeTimeOutSchedule
+            - name: addTimeOutSchedule
+            - name: confirmAddressText
+        enter: parseTime
+    askLocationState:
+        transitions:
+            getNearestStoreState:
+                condition: 'intent=="shareLocationIntent" || content == "shareloc"'
+                mapping:
+                    context:
+                        saveLat: payload.latitude
+                        saveLong: payload.longitude
+                    data:
+                        latitude: "-6.263208"
+                        longitude: "106.815848"
+            # giveNearestStoreState:
+            #     condition: 'content == "ada"'
+            # noNearestStoreState:
+            #     condition: 'content == "gak"'
+            askLocationState:
+                fallback: true
+        action:
+            - name: removeTimeOutSchedule
+            - name: addTimeOutSchedule
+            - name: askLocText
+              condition: "!data.reenter"
+            - name: locationFallbackText
+              condition: data.reenter
+        transit:
+            data:
+                reenter: "'true'"
+        enter: parseTime
+    getNearestStoreState:
+        transitions:
+            toMenuState:
+                condition: 'intent == "nextIntent" && payload.result.data.length == 1 && context.saveAddress'
+                mapping:
+                    data:
+                        storeId: payload.result.data[0].id
+                        phoneStore: payload.result.data[0].phone
+            giveNearestStoreState:
+                # fallback: true
+                condition: 'intent == "nextIntent" && payload.result.data.length > 1 && context.saveAddress'
+                mapping:
+                    data:
+                        reenter: "null"
+                        allStore: payload.result.data
+                        storeLength: payload.result.data.length
+            askFullAddressState:
+                condition: 'intent == "nextIntent" && payload.result.data.length >= 1 && !context.saveAddress'
+                mapping:
+                    data:
+                        reenter: "null"
+                        allStore: payload.result.data
+                        storeLength: payload.result.data.length
+                        storeId: payload.result.data[0].id
+                        phoneStore: payload.result.data[0].phone
+            noNearestStoreState:
+                condition: 'intent == "nextIntent" && (payload.result.data.length < 1 || !payload.result)'
+                mapping:
+                    data:
+                        reenter: "null"
+        action:
+            - name: getNearestStoreAPI
+              condition: context.firstTime
+            - name: getNearestStoreAPI2
+              condition: "!context.firstTime"
+            - name: nextCommand
+    askFullAddressState:
+        transitions:
+            askLocationState:
+                condition: content == "00"
+                fallback: true
+            giveNearestStoreState:
+                # fallback: true
+                condition: intent == "addressIntent" && data.storeLength > 1
+                mapping:
+                    data:
+                        addressNotes: content
+                        latitudeUser: context.saveLat
+                        longitudeUser: context.saveLong
+                        reenter: "null"
+            toMenuState:
+                condition: intent == "addressIntent" && data.storeLength == 1
+                mapping:
+                    data:
+                        addressNotes: content
+                        latitudeUser: context.saveLat
+                        longitudeUser: context.saveLong
+                        reenter: "null"
+            askFullAddressState:
+                fallback: true
+                mapping:
+                    data:
+                        reenter: "'true'"
+        action:
+            - name: askFullAddressText
+              condition: "!data.reenter"
+            - name: fallbackFullAddressText
+              condition: data.reenter
+    giveNearestStoreState:
+        transitions:
+            byeState:
+                condition: intent == "byeIntent" || intent == "noIntent"
+            inputValidationState:
+                # fallback: true
+                condition: intent == "numberRegex"
+                mapping:
+                    context:
+                        chooseStore: content
+                    data:
+                        storeId: payload.result.data[0].id
+            giveNearestStoreState:
+                fallback: true
+        action:
+            - name: listStoreText
+    inputValidationState:
+        transitions:
+            toMenuState:
+                condition: intent == "nextIntent" && data.chooseStoreValid
+            giveNearestStoreState:
+                condition: intent == "nextIntent" && !data.chooseStoreValid
+                fallback: true
+        action:
+            # - name: test
+            - name: nextCommand
+        enter: validateStoreInput
+    toMenuState:
+        action:
+            - name: toMenuCommand
+        end: true
+        enter: getStoreId
+    resetState:
+        transitions:
+            resetState:
+                fallback: true
+        action: toResetCommand
+        float:
+            condition: 'intent=="reset"'
+        exit:
+            data:
+                waPhoneNumber: metadata.whatsappSenderId
+        end: true
+    noNearestStoreState:
+        transitions:
+            getNearestStoreState:
+                condition: intent=="shareLocationIntent" || content == "shareloc"
+                mapping:
+                    context:
+                        saveAddress: "null"
+                        firstTime: "'true'"
+                        saveLat: payload.latitude
+                        saveLong: payload.longitude
+                    data:
+                        reenter: "null"
+            byeState:
+                condition: intent == "noIntent"  || (intent == "numberIntent" && attributes.number == "2")
+                mapping:
+                    data:
+                        reenter: "null"
+            noNearestStoreState:
+                fallback: true
+        action:
+            - name: noStoreText
+            - name: askOtherLocText
+        end: false
+    endTriggerState:
+        action:
+            - name: endCommand
+        float:
+            condition: 'content=="endTrigger"'
+        end: true
+    cancelState:
+        action:
+            - name: removeTimeOutSchedule
+            - name: removeTimeOutScheduleStoreClose
+            # - name: byeText
+            - name: toByeCommand
+        float:
+            condition: 'intent=="byeIntent" || intent=="timeOutIntent"'
+        end: true
+    byeState:
+        action:
+            - name: removeTimeOutSchedule
+            - name: removeTimeOutScheduleStoreClose
+            - name: byeText
+        # float:
+        #     condition: 'intent=="byeIntent"'
+        end: true
+        enter:
+            data:
+                date: "null"
+                reenter: "null"
+                # addressNotes: "null"
+                extraNotes: "null"
+                paymentMethod: "null"
+                shippingMethod: "null"
+                shippingPrice: "null"
+                rateId: "null"
+                finalMenu: "null"
+                order: "null"
+                orderId: "null"
+                storeId: "null"
+                deliveryMethod: "null"
+                allStore: "null"
+                retryHit: "null"
+                dataOrder: "null"
+    storeCloseState:
+        action:
+            - name: removeTimeOutSchedule
+            - name: removeTimeOutScheduleStoreClose
+            - name: storeCloseText
+        float:
+            condition: 'intent=="storeCloseIntent"'
+        end: true
+        enter:
+            data:
+                date: "null"
+                reenter: "null"
+                # addressNotes: "null"
+                extraNotes: "null"
+                paymentMethod: "null"
+                shippingMethod: "null"
+                shippingPrice: "null"
+                rateId: "null"
+                finalMenu: "null"
+                order: "null"
+                orderId: "null"
+                storeId: "null"
+                deliveryMethod: "null"
+                allStore: "null"
+                retryHit: "null"
+
+actions:
+#Text
+    test:
+        type: text
+        options:
+            text: "ok $(payload.result.data.length) || $(context.storeId) || $(data.chooseStoreValid)"
+    storeIDPrint:
+        type: text
+        options:
+            text: "Store ID : $(data.storeId)"
+    longlatMapTest:
+        type: text
+        options:
+            text: "Longitude : $(data.longitude) Latitude: $(data.latitude) || result : $(result.data)"
+    foundLocText:
+        type: text
+        options:
+            text: $(cms.cci.location.foundLocText.value)
+            cmsType: textarea
+    confirmAddressText:
+        type: text
+        options:
+            text: |-
+                Kemarin $(data.name) pesan ke alamat ini:
+
+                $(data.addressNotes)
+
+                1. Lanjut lihat menu
+                2. Ganti alamat
+
+                💡 _Ketik angka pilihannya, ya_
+    askLocText:
+        type: text
+        options:
+            text: |-
+                Share lokasi $(data.name) saat ini untuk tahu jarak antar dari Tujuhari ke lokasi kamu 😉
+
+                📍 _Klik icon 📎 atau ➕ pada layar chat WhatsApp untuk share lokasi. Saat ini Tujuhari hanya mengantar ke area dengan jarak maksimal 15 km, ya_
+    askLocText2:
+        type: text
+        options:
+            text: $(cms.cci.location.askLocText2.value)
+            cmsType: textarea
+    askFullAddressText:
+        type: text
+        options:
+            text: |-
+                Sekarang masukkan alamat lengkap $(data.name), ya
+
+                💡 _Contoh: Jl. Wijaya II , Grand Wijaya Center B 8-9, Pulo, Kebayoran Baru_
+                atau ketik *00 untuk kembali*
+    fallbackFullAddressText:
+        type: text
+        options:
+            text: |-
+                Sepertinya $(data.name) belum memasukkan alamat lengkap. Tulis dulu ya agar aku bisa mengantarkannya
+
+                💡 _Contoh: Jl. Cipete Raya B No.7, RT.6/RW.3_
+    noStoreText:
+        type: text
+        options:
+            text: |-
+                Maaf ya, lokasi $(data.name) berada di luar jangkauan pengantaran kami 😢
+    askOtherLocText:
+        type: text
+        options:
+            text: |-
+                Bagikan lokasi $(data.name) lagi atau ketik 2 untuk membatalkan
+    locationFallbackText:
+        type: text
+        options:
+            text: |-
+                Bagikan lokasi $(data.name) saat ini dulu ya untuk tahu jarak antar dari Tujuhari ke lokasi kamu 😉
+
+                📍 _Klik icon 📎 atau ➕  pada layar chat WhatsApp untuk share lokasi. Pastikan titiknya sesuai ya_ 😉
+    byeText:
+        type: text
+        options:
+            text: |-
+                Terima kasih sudah menghubungi WhatsApp Tujuhari. Sampai bertemu lagi 😉
+    storeCloseText:
+        type: text
+        options:
+            text: |-
+                Yah, maaf $(data.name), saat ini toko sedang tutup. Jam operasional Tujuhari selama PPKM: 
+                Senin-Jumat: 9:00-19:00 
+                Sabtu-Minggu: 7:00-19:00
+
+#Command
+    nextCommand:
+        type: command
+        options:
+            command: next
+            payload:
+                result: $(result)
+    toResetCommand:
+        type: command
+        options:
+            command: toReset
+    toMenuCommand:
+        type: command
+        options:
+            command: toMenu
+    endCommand:
+        type: command
+        options:
+            command: userTimeOut
+    toByeCommand:
+        type: command
+        options:
+            command: toBye
+
+#API
+    getNearestStoreAPI:
+        type: api
+        options:
+            # uri: "https://api-chatcommerce.katalabs.io/v1/merchants/14d6d01a-ceac-4773-a455-a7451d670f51/nearest"
+            uri: "$(config.apiBaseUrl)/merchants/$(config.merchantId)/nearest"
+            method: POST
+            body:
+                latitude: $(context.saveLat)
+                longitude: $(context.saveLong)
+                # latitude: $(data.latitude)
+                # longitude: $(data.longitude)
+    getNearestStoreAPI2:
+        type: api
+        options:
+            # uri: "https://api-chatcommerce.katalabs.io/v1/merchants/14d6d01a-ceac-4773-a455-a7451d670f51/nearest"
+            uri: "$(config.apiBaseUrl)/merchants/$(config.merchantId)/nearest"
+            method: POST
+            body:
+                latitude: $(data.latitudeUser)
+                longitude: $(data.longitudeUser)
+
+#Others
+    cmslocator:
+        type: locator
+        options:
+            elementId: $(cms.firstPages.secondForm.location.id)
+            maxDistance: 10000
+    locatorKenangan:
+        type: locator
+        options:
+            elementId: $(cms.firstPages.secondForm.locatorKenangan.id)
+            maxDistance: 10000
+    removeTimeOutSchedule:
+        type: schedule
+        options:
+            id: userTimeOut
+            command: remove
+    addTimeOutSchedule:
+        type: schedule
+        options:
+            id: userTimeOut
+            command: add
+            freqInterval: 10
+            freqType: minute
+            start: $(context.parsedTime)
+            end: $(context.parsedTimeEnd)
+            message:
+                type: command
+                content: userTimeOut
+    removeTimeOutScheduleStoreClose:
+        type: schedule
+        options:
+            id: timeOutStoreClose
+            command: remove
+    addTimeOutScheduleStoreClose:
+        type: schedule
+        options:
+            id: timeOutStoreClose
+            command: add
+            freqInterval: 10
+            freqType: minute
+            start: $(context.parsedTimeClose)
+            end: $(context.parsedTimeClose)
+            message:
+                type: command
+                content: timeOutStoreClose
+
+#Method
+    validateInputMethod:
+        type: method
+        method: validateStoreInput
+    listStoreText:
+        type: method
+        method: showStoreList
+    logAttributes:
+        type: method
+        method: logAttributes
+        options: {}

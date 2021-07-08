@@ -1,0 +1,495 @@
+active: true
+volatile: false
+intents:
+#Text
+    byeIntent:
+        type: text
+        classifier:
+            nlu: bye
+            match: bye
+    numberIntent:
+        type: text
+        classifier:
+            nlu: numberKeyword
+        attributes:
+            number:
+                nlu: numberKeyword
+        condition: context.$state != "changeOrDeleteState"
+    numberRegex:
+        type: text
+        classifier:
+            nlu: numberRegex
+        condition: context.$state == "changeOrDeleteState"
+
+#Command
+    toChangeOrderIntent:
+        type: command
+        initial: true
+        condition: content == "toChangeOrder"
+    nextIntent:
+        type: command
+        condition: 'content=="next"'
+    timeOutIntent:
+        type: command
+        condition: 'content == "userTimeOut"'
+    storeCloseIntent:
+        type: command
+        condition: 'content == "timeOutStoreClose" || content == "storeClosed"'
+
+#Others
+    reset:
+        type: text
+        classifier:
+            nlu: reset
+    reenter:
+        type: command
+        priority: -10
+        condition: 'content=="reenter"'
+    textfree:
+        type: text
+        fallback: true
+        priority: -100
+
+states:
+    init:
+        transitions:
+            changeOrderState:
+                fallback: true
+                mapping:
+                    data:
+                        reenter: "null"
+        initial: true
+    changeOrderState:
+        transitions:
+            confirmChangeOrderState:
+                condition: intent=="numberIntent"
+                mapping: mappingIndex
+            changeOrderState:
+                fallback: true
+        action:
+            - name: changeOrderText
+        enter: dataWithoutExtra
+    confirmChangeOrderState:
+        transitions:
+            changeOrDeleteState:
+                condition: intent=="numberIntent" || (intent=="nextIntent" && context.indexFound)
+                mapping: mappingIndex2
+            changeOrderState:
+                condition: intent=="nextIntent" && !context.indexFound
+                mapping:
+                    context:
+                        indexFound: "'false'"
+            confirmChangeOrderState:
+                fallback: true
+        action:
+            - name: confirmChangeOrderText
+              condition: context.indexFound && context.multipleArray
+            - name: nextCommand
+              condition: context.indexFound && !context.multipleArray
+            - name: nextCommand
+              condition: "!context.indexFound"
+    changeOrDeleteState:
+        transitions:
+            deleteOrderMethodState:
+                condition: content == "0"
+                mapping:
+                    data:
+                        order: "null"
+                        newArrayData: "null"
+            updateQuantityMethodState:
+                condition: intent == "numberRegex"
+                mapping:
+                    data:
+                        qtyChoosen: content
+            confirmChangeOrderState:
+                condition: intent=="nextIntent"
+                mapping:
+                    context:
+                        indexFound: "'true'"
+            changeOrDeleteState:
+                fallback: true
+        action:
+            - name: changeOrDeleteText
+              condition: context.indexFound
+            - name: nextCommand
+              condition: "!context.indexFound"
+    deleteOrderMethodState:
+        transitions:
+            orderAvailableState:
+                condition: intent == "nextIntent" && payload.result.allAvailable
+                mapping:
+                    data:
+                        reenter: "null"
+                        order: payload.result
+            orderPartlyState:
+                condition: intent == "nextIntent" && payload.result.partiallyAvailable
+            gotoOrderState:
+                condition: intent == "nextIntent" && !payload.result.allAvailable
+                mapping:
+                    data:
+                        extraChoosen: "null"
+        action:
+            - name: deleteOrderText
+            - name: checkOrderAPI
+            - name: nextCommand
+        enter: deleteOrder
+    updateQuantityMethodState:
+        transitions:
+            orderAvailableState:
+                condition: intent == "nextIntent" && payload.result.allAvailable
+                mapping:
+                    data:
+                        reenter: "null"
+                        order: payload.result
+            orderPartlyState:
+                condition: intent == "nextIntent" && payload.result.partiallyAvailable
+            gotoOrderState:
+                condition: intent == "nextIntent" && !payload.result.allAvailable
+                mapping:
+                    data:
+                        extraChoosen: "null"
+        action:
+            # - name: changeQuantityOrderText
+            - name: checkOrderAPI
+            - name: nextCommand
+        enter: changeQuantity
+    orderAvailableState:
+        transitions:
+            createOrderState:
+                condition: intent=="numberIntent" && attributes.number == "1"
+                mapping:
+                    data:
+                        reenter: "null"
+            gotoOrderState:
+                condition: intent=="numberIntent" && attributes.number == "2"
+                mapping:
+                    data:
+                        reenter: "null"
+                        extraChoosen: "null"
+            changeOrderState:
+                condition: intent=="numberIntent" && attributes.number == "3"
+                mapping:
+                    data:
+                        reenter: "null"
+            orderAvailableState:
+                fallback: true
+        action:
+            - name: recapOrderText
+              condition: "!context.storeClosed && !data.reenter"
+            - name: addOrderFallbackText
+              condition: "!context.storeClosed && data.reenter"
+            - name: storeClosedCommand
+              condition: context.storeClosed
+        transit:
+            data:
+                reenter: "'true'"
+    orderPartlyState:
+        transitions:
+            createOrderState:
+                condition: intent == "numberIntent" && attributes.number == "1"
+                mapping:
+                    data:
+                        reenter: "null"
+            gotoOrderState:
+                condition: intent=="numberIntent" && attributes.number == "2"
+                mapping:
+                    data:
+                        reenter: "null"
+                        extraChoosen: "null"
+            changeOrderState:
+                condition: intent=="numberIntent" && attributes.number == "3"
+                mapping:
+                    data:
+                        reenter: "null"
+            orderPartlyState:
+                fallback: true
+        action:
+            - name: emptyOrderText
+              condition: "!context.storeClosed && !data.reenter"
+            - name: recapOrderPartlyText
+              condition: "!context.storeClosed && !data.reenter"
+            - name: addOrderFallbackText
+              condition: "!context.storeClosed && data.reenter"
+            - name: storeClosedCommand
+              condition: context.storeClosed
+        transit:
+            data:
+                reenter: "'true'"
+    gotoOrderState:
+        action:
+            - name: gotoOrderCommand
+        end: true
+    createOrderState:
+        transitions:
+            toCheckoutState:
+                condition: intent == "nextIntent" && payload.result
+                mapping:
+                    data:
+                        orderId: payload.result.id
+            failedCreateOrderState:
+                condition: intent == "nextIntent" && !payload.result
+        action:
+            - name: rewriteOrderAPI
+              condition: data.orderId
+            - name: createOrderAPI
+              condition: "!data.orderId"
+            - name: nextCommand
+    toCheckoutState:
+        action:
+            - name: toCheckoutCommand
+        end: true
+    failedCreateOrderState:
+        transitions:
+            createOrderState:
+                condition: intent == "numberIntent" && attributes.number == "1"
+            byeState:
+                condition: intent == "numberIntent" && attributes.number == "2"
+            failedCreateOrderState:
+                fallback: true
+        action:
+            - name: retryCreateOrderText
+    reset:
+        transitions:
+            reset:
+                fallback: true
+        action: toReset
+        float:
+            condition: 'intent=="reset"'
+        exit:
+            data:
+                waPhoneNumber: metadata.whatsappSenderId
+        end: true
+    byeState:
+        action:
+            - name: removeTimeOutSchedule
+            - name: removeTimeOutScheduleStoreClose
+            - name: toByeCommand
+        # float:
+        #     condition: 'intent=="byeIntent"'
+        end: true
+        enter:
+            data:
+                date: "null"
+                reenter: "null"
+                # addressNotes: "null"
+                extraNotes: "null"
+                paymentMethod: "null"
+                shippingMethod: "null"
+                shippingPrice: "null"
+                rateId: "null"
+                finalMenu: "null"
+                order: "null"
+                orderId: "null"
+                storeId: "null"
+                deliveryMethod: "null"
+                allStore: "null"
+                retryHit: "null"
+                dataOrder: "null"
+                extraChoosen: "null"
+    cancelState:
+        action:
+            # - name: removeTimeOutSchedule
+            # - name: removeTimeOutScheduleStoreClose
+            # - name: byeText
+            - name: cancelAPI
+              condition: data.orderId
+            - name: toByeCommand
+        float:
+            condition: 'intent=="byeIntent" || intent=="timeOutIntent"'
+        end: true
+    storeCloseState:
+        action:
+            - name: removeTimeOutSchedule
+            - name: removeTimeOutScheduleStoreClose
+            - name: storeCloseText
+        float:
+            condition: 'intent=="storeCloseIntent"'
+        end: true
+        enter:
+            data:
+                date: "null"
+                reenter: "null"
+                # addressNotes: "null"
+                extraNotes: "null"
+                paymentMethod: "null"
+                shippingMethod: "null"
+                shippingPrice: "null"
+                rateId: "null"
+                finalMenu: "null"
+                order: "null"
+                orderId: "null"
+                storeId: "null"
+                deliveryMethod: "null"
+                allStore: "null"
+                retryHit: "null"
+            context:
+                storeClosed: "'true'"
+
+actions:
+#Text
+    test:
+        type: text
+        options:
+            text: "mohon tunggu sebentar || $(payload.result.id) || data.orderId: $(data.orderId)"
+    deleteOrderText:
+        type: text
+        options:
+            text: $(data.name) sudah berhasil menghapus pesanan
+    changeQuantityOrderText:
+        type: text
+        options:
+            text: qty pesanan kamu berhasil ditambahkan
+    emptyOrderText:
+        type: text
+        options:
+            text: |-
+                Huhu pesanan kamu lagi habis 😢
+    byeText:
+        type: text
+        options:
+            text: |-
+                Terima kasih sudah menghubungi WhatsApp Toko Kopi Tuku. Sampai bertemu lagi 😉
+    printAttributes:
+        type: text
+        options:
+            text: "printAttributes --> $(attributes)"
+    storeCloseText:
+        type: text
+        options:
+            text: |-
+                Yah, maaf $(data.name), saat ini toko sedang tutup. Jam operasional Tujuhari selama PPKM: 
+                Senin-Jumat: 9:00-19:00 
+                Sabtu-Minggu: 7:00-19:00
+    addOrderFallbackText:
+        type: text
+        options:
+            text: Maaf, aku belum mengerti maksudmu. Kamu bisa ketik *1* lanjut pilih pengiriman, *2* tambah pesanan atau *3* ubah pesanan
+    retryCreateOrderText:
+        type: text
+        options:
+            text: |-
+                Maaf, aku belum memproses pilihanmu 😔. Apa $(data.name) mau menginput pesanan lagi?
+
+                1. Ya, input pesanan
+                2. Nggak, batal pesan
+
+#Command
+    nextCommand:
+        type: command
+        options:
+            command: next
+            payload:
+                result: $(result)
+    toCheckoutCommand:
+        type: command
+        options:
+            command: checkout
+    toReset:
+        type: command
+        options:
+            command: toReset
+    toByeCommand:
+        type: command
+        options:
+            command: toBye
+    gotoOrderCommand:
+        type: command
+        options:
+            command: toMenu
+    storeClosedCommand:
+        type: command
+        options:
+            command: storeClosed
+
+#API
+    cancelAPI:
+        type: api
+        options:
+            uri: "$(config.apiBaseUrl)/merchants/$(config.merchantId)/stores/$(data.storeId)/orders/cancel"
+            method: POST
+            body:
+                cancel: true
+                orderId: $(data.orderId)
+    rewriteOrderAPI:
+        type: api
+        options:
+            uri: "$(config.apiBaseUrl)/merchants/$(config.merchantId)/stores/$(data.storeId)/orders/$(data.orderId)"
+            method: PUT
+            body:
+                data: $(data.finalDataOrder)
+    checkOrderAPI:
+        type: api
+        options:
+            # uri: "https://api-chatcommerce.katalabs.io/v1/merchants/14d6d01a-ceac-4773-a455-a7451d670f51/stores/$(data.storeId)/orders/check"
+            uri: "$(config.apiBaseUrl)/merchants/$(config.merchantId)/stores/$(data.storeId)/orders/check"
+            method: POST
+            body:
+                data: $(data.finalDataOrder)
+    createOrderAPI:
+        type: api
+        options:
+            # uri: "https://api-chatcommerce.katalabs.io/v1/merchants/14d6d01a-ceac-4773-a455-a7451d670f51/stores/$(data.storeId)/orders"
+            uri: "$(config.apiBaseUrl)/merchants/$(config.merchantId)/stores/$(data.storeId)/orders"
+            method: POST
+            body:
+                data: $(data.finalDataOrder)
+
+#Method
+    recapOrderText:
+        type: method
+        method: recapAllOrder
+    recapOrderPartlyText:
+        type: method
+        method: recapOrderPartlyText
+    logAttributes:
+        type: method
+        method: logAttributes
+        options: {}
+    changeOrderText:
+        type: method
+        method: changeOrderText
+    changeOrDeleteText:
+        type: method
+        method: changeOrDeleteText
+    deleteOrder:
+        type: method
+        method: deleteOrder
+    confirmChangeOrderText:
+        type: method
+        method: confirmChangeOrderText
+
+#Others
+    removeTimeOutSchedule:
+        type: schedule
+        options:
+            id: userTimeOut
+            command: remove
+    removeTimeOutScheduleStoreClose:
+        type: schedule
+        options:
+            id: timeOutStoreClose
+            command: remove
+    addTimeOutSchedule:
+        type: schedule
+        options:
+            id: userTimeOut
+            command: add
+            freqInterval: 10
+            freqType: minute
+            start: $(context.parsedTime)
+            end: $(context.parsedTimeEnd)
+            message:
+                type: command
+                content: userTimeOut
+    addTimeOutScheduleStoreClose:
+        type: schedule
+        options:
+            id: timeOutStoreClose
+            command: add
+            freqInterval: 10
+            freqType: minute
+            start: $(context.parsedTimeClose)
+            end: $(context.parsedTimeClose)
+            message:
+                type: command
+                content: timeOutStoreClose
