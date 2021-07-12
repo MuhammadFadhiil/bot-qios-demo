@@ -56,7 +56,7 @@ actions:
         type: text
         options:
             text: |-
-                Terima kasih sudah menghubungi WhatsApp Tujuhari. Sampai bertemu lagi 😉
+                Terima kasih sudah menghubungi WhatsApp Toko Kopi. Sampai bertemu lagi 😉
 
 #Command
     toRegistCommand:

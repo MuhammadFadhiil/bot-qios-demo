@@ -92,7 +92,7 @@ states:
     introMenuState:
         transitions:
             askQuantityState:
-                condition: content == "1" || content == "2" || content == "3" || content == "4" || content == "5" || content == "5" || content == "6" || content == "7" || content == "8"
+                condition: content == "1" || content == "2" || content == "3" || content == "4" || content == "5"
                 mapping: orderChooseMapping
             introMenuState:
                 fallback: true
@@ -102,8 +102,8 @@ states:
         action:
             - name: removeTimeOutSchedule
             - name: addTimeOutSchedule
-            - name: menuImage
-              condition: "!data.reenter"
+            # - name: menuImage
+            #   condition: "!data.reenter"
             - name: greetingMenuText
               condition: "!data.reenter"
             - name: fallbackMenuText
@@ -125,7 +125,7 @@ states:
     cekAvailabilityState:
         transitions:
             askUserWantToAddNotesState:
-                condition: 'intent == "nextIntent" && payload.result.availability && (data.orderChoosen == "7h1" || data.orderChoosen == "7h2" || data.orderChoosen == "7h3" || data.orderChoosen == "7h5")'
+                condition: 'intent == "nextIntent" && payload.result.availability && (data.orderChoosen == "a1" || data.orderChoosen == "a2" || data.orderChoosen == "a3" || data.orderChoosen == "a4" || data.orderChoosen == "a5")'
                 mapping:
                     data:
                         reenter: "null"
@@ -183,20 +183,14 @@ states:
                 fallback: false
                 condition: intent == "numberIntent" || content == "00" || intent == "textfree"
         action:
-            - name: allCompleted
-              condition: '!context.notes1 && !context.notes2 && (data.orderChoosen == "7h4" || data.orderChoosen == "7h6" || data.orderChoosen == "7h7" || data.orderChoosen == "7h8")'
             - name: allCompleted #harian 220, harian coconut 220, harian 1L. menu with 3 notes
-              condition: context.notes1 && context.notes2 && (data.orderChoosen == "7h1" || data.orderChoosen == "7h2" || data.orderChoosen == "7h5")
-            - name: allCompleted #long black 220 menu with 1 notes
-              condition: context.notes1 && (data.orderChoosen == "7h3")
+              condition: context.notes1 && context.notes2 && (data.orderChoosen == "a1" || data.orderChoosen == "a2" || data.orderChoosen == "a3" || data.orderChoosen == "a4" || data.orderChoosen == "a5")
             - name: askNotesText1 #ask sugar level
-              condition: '!context.notes1 && (data.orderChoosen == "7h1" || data.orderChoosen == "7h2" || data.orderChoosen == "7h5")'
+              condition: '!context.notes1 && (data.orderChoosen == "a1" || data.orderChoosen == "a2" || data.orderChoosen == "a3" || data.orderChoosen == "a4" || data.orderChoosen == "a5")'
             - name: askNotesText2 #ask extra
-              condition: 'context.notes1 && !context.notes2 && (data.orderChoosen == "7h1" || data.orderChoosen == "7h2")'
-            - name: askNotesLongBlack
-              condition: '!context.notes1 && data.orderChoosen == "7h3"'
+              condition: 'context.notes1 && !context.notes2 && (data.orderChoosen == "a1" || data.orderChoosen == "a2" || data.orderChoosen == "a3")'
             - name: askNotesHarian1LText #ask extra for kopi harian 1L
-              condition: 'context.notes1 && !context.notes2 && data.orderChoosen == "7h5"'
+              condition: 'context.notes1 && !context.notes2 && (data.orderChoosen == "a4" || data.orderChoosen == "a5")'
         exit: mappingNotes
     merchantConfirmState:
         transitions:
@@ -432,24 +426,13 @@ actions:
             text: |-
                 Pilih menu yang mau $(data.name) pesan hari ini
 
-                1. Kopi Harian Botol 220 ml
-                2. Kopi Harian Coconut Botol 220 ml
-                3. Long Black Botol 220 ml
-                4. Express Shot 220 ml
-                5. Kopi Harian Literan
-                6. Cookies Latte Literan
-                7. Speculatte Literan
-                8. Matcha Latte Literan
+                1. Kopi Susu Botol 220 ml
+                2. Kopi Item Botol 220 ml
+                3. Kopi Coconut Botol 220 ml
+                4. Kopi Susu Botol 1 L
+                5. Aren Latte Botol 1 L
 
                 💡 _Cukup ketik salah satu angka pilihan, ya_
-    introMenuText:
-        type: text
-        options:
-            text: |-
-                Kamu bisa memesan skt, tukucur, dll banyak pokoknya
-                1. SKT
-                2. blablabla
-                3. blablabla
     addOrderFallbackText:
         type: text
         options:
@@ -488,7 +471,7 @@ actions:
 
                 1. Less coffee
                 2. Normal
-                3. Extra coffee (+ Rp12.000)
+                3. Extra coffee (+ Rp2.000)
                 00. Kembali
 
                 💡 _ketik angkanya, ya_
@@ -500,7 +483,7 @@ actions:
 
                 1. Less coffee
                 2. Normal
-                3. Extra coffee (+ Rp60.000)
+                3. Extra coffee (+ Rp6.000)
                 00. Kembali
 
                 💡 _ketik angkanya, ya_
@@ -549,12 +532,12 @@ actions:
             text: |-
                 Maaf, aku belum mengerti menu yang kamu maksud. Ketik angka menu pilihan aja ya.
 
-                💡 _Contoh: 1 untuk memesan Kopi Harian Botol 220 ml_
+                💡 _Contoh: 1 untuk memesan Kopi Susu Botol 220 ml_
     byeText:
         type: text
         options:
             text: |-
-                Terima kasih sudah menghubungi WhatsApp Tujuhari. Sampai bertemu lagi 😉
+                Terima kasih sudah menghubungi WhatsApp Toko Kopi. Sampai bertemu lagi 😉
     printAttributes:
         type: text
         options:
@@ -563,9 +546,7 @@ actions:
         type: text
         options:
             text: |-
-                Yah, maaf $(data.name), saat ini toko sedang tutup. Jam operasional Tujuhari selama PPKM: 
-                Senin-Jumat: 9:00-19:00 
-                Sabtu-Minggu: 7:00-19:00
+                Yah, maaf $(data.name), saat ini toko sedang tutup. Toko Kopi beroperasi pukul 09:00 sampai 21:00, ya
     askUserWantToAddNotesText:
         type: text
         options:

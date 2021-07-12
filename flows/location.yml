@@ -363,9 +363,9 @@ actions:
         type: text
         options:
             text: |-
-                Share lokasi $(data.name) saat ini untuk tahu jarak antar dari Tujuhari ke lokasi kamu 😉
+                Share lokasi $(data.name) saat ini untuk tahu jarak antar dari Toko Kopi ke lokasi kamu 😉
 
-                📍 _Klik icon 📎 atau ➕ pada layar chat WhatsApp untuk share lokasi. Saat ini Tujuhari hanya mengantar ke area dengan jarak maksimal 15 km, ya_
+                📍 _Klik icon 📎 atau ➕ pada layar chat WhatsApp untuk share lokasi. Saat ini Toko Kopi hanya mengantar ke area dengan jarak maksimal 15 km, ya_
     askLocText2:
         type: text
         options:
@@ -377,15 +377,14 @@ actions:
             text: |-
                 Sekarang masukkan alamat lengkap $(data.name), ya
 
-                💡 _Contoh: Jl. Wijaya II , Grand Wijaya Center B 8-9, Pulo, Kebayoran Baru_
-                atau ketik *00 untuk kembali*
+                💡 _Contoh: Jl. Kemang Raya No.54, Bangka, Mampang Prapatan_
     fallbackFullAddressText:
         type: text
         options:
             text: |-
                 Sepertinya $(data.name) belum memasukkan alamat lengkap. Tulis dulu ya agar aku bisa mengantarkannya
 
-                💡 _Contoh: Jl. Cipete Raya B No.7, RT.6/RW.3_
+                💡 _Contoh: Jl. Kemang Raya No.54, Bangka, Mampang Prapatan_
     noStoreText:
         type: text
         options:
@@ -400,21 +399,19 @@ actions:
         type: text
         options:
             text: |-
-                Bagikan lokasi $(data.name) saat ini dulu ya untuk tahu jarak antar dari Tujuhari ke lokasi kamu 😉
+                Bagikan lokasi $(data.name) saat ini dulu ya untuk tahu jarak antar dari Toko Kopi ke lokasi kamu 😉
 
                 📍 _Klik icon 📎 atau ➕  pada layar chat WhatsApp untuk share lokasi. Pastikan titiknya sesuai ya_ 😉
     byeText:
         type: text
         options:
             text: |-
-                Terima kasih sudah menghubungi WhatsApp Tujuhari. Sampai bertemu lagi 😉
+                Terima kasih sudah menghubungi WhatsApp Toko Kopi. Sampai bertemu lagi 😉
     storeCloseText:
         type: text
         options:
             text: |-
-                Yah, maaf $(data.name), saat ini toko sedang tutup. Jam operasional Tujuhari selama PPKM: 
-                Senin-Jumat: 9:00-19:00 
-                Sabtu-Minggu: 7:00-19:00
+                Yah, maaf $(data.name), saat ini toko sedang tutup. Toko Kopi beroperasi pukul 09:00 sampai 21:00, ya
 
 #Command
     nextCommand:

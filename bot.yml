@@ -106,5 +106,5 @@ methods:
         entry: changeQuantity
 config:
     maxRecursion: 10
-    apiBaseUrl: 'https://qios-order.kata.ai/v1'
-    merchantId: c172aa08-3a47-4734-9556-105cf5324718
+    apiBaseUrl: 'https://qios-order.katalabs.io/v1'
+    merchantId: f5287b83-6a64-4b09-84fe-386148d8325a

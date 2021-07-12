@@ -2,7 +2,7 @@ function showStoreList(message, context, data, options, config) {
     var merchants = data.allStore;
     var name = data.name;
     
-    var store = "Hore! Kak " + name + " berada di area pengantaran Toko Kopi Tuku🎉 \n\nMau pesan dari toko mana?\n\n";
+    var store = "Hore! Kak " + name + " berada di area pengantaran Toko Kopi \n\nMau pesan dari toko mana?\n\n";
     for (let i = 0; i < merchants.length; i++) {
         store += i + 1 + ". *" + merchants[i]["name"] + " (" + merchants[i]["distance"] + "km)" + "*\n";
     }

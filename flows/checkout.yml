@@ -508,21 +508,21 @@ actions:
             text: |-
                 Tulis email $(data.name) dulu, ya 
 
-                💡 _Contoh: halo@tujuhari.com_
+                💡 _Contoh: halo@tokokopi.com_
     askEmailFallbackText:
         type: text
         options:
             text: |-
                 Yah, sepertinya email yang kamu tulis belum sesuai. Coba ketik lagi ya 😊
 
-                💡 _Contoh: halo@tujuhari.com_
+                💡 _Contoh: halo@tokokopi.com_
     changeEmailText:
         type: text
         options:
             text: |-
                 Ketik email pemesan
 
-                💡 _Contoh: halo@tujuhari.com_
+                💡 _Contoh: halo@tokokopi.com_
                 atau *ketik 00 untuk kembali*
     paymentGopayText:
         type: text
@@ -569,7 +569,7 @@ actions:
         type: text
         options:
             text: |-
-                Terima kasih sudah menghubungi WhatsApp Tujuhari. Sampai bertemu lagi 😉
+                Terima kasih sudah menghubungi WhatsApp Toko Kopi. Sampai bertemu lagi 😉
     printAttributes:
         type: text
         options:
@@ -585,9 +585,7 @@ actions:
         type: text
         options:
             text: |-
-                Yah, maaf $(data.name), saat ini toko sedang tutup. Jam operasional Tujuhari selama PPKM: 
-                Senin-Jumat: 9:00-19:00 
-                Sabtu-Minggu: 7:00-19:00
+                Yah, maaf $(data.name), saat ini toko sedang tutup. Toko Kopi beroperasi pukul 09:00 sampai 21:00, ya
     baristaNotesText:
         type: text
         options:

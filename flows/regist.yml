@@ -304,10 +304,6 @@ states:
             - name: csatCommand
               condition: context.result=="DELIVERED"
         end: true
-    # asktoPayState:
-    #     action:
-    #         - name: askToPayText
-    #     end: true
     menuState:
         transitions:
             menuState:
@@ -330,23 +326,6 @@ states:
             - name: nextCommand
         float:
             condition: 'intent=="byeIntent"'
-        # enter:
-        #     data:
-        #         date: "null"
-        #         reenter: "null"
-        #         # addressNotes: "null"
-        #         extraNotes: "null"
-        #         paymentMethod: "null"
-        #         shippingMethod: "null"
-        #         shippingPrice: "null"
-        #         rateId: "null"
-        #         finalMenu: "null"
-        #         order: "null"
-        #         orderId: "null"
-        #         storeId: "null"
-        #         deliveryMethod: "null"
-        #         allStore: "null"
-        #         retryHit: "null"
     cancelState:
         action:
             - name: removeTimeOutSchedule1
@@ -397,7 +376,7 @@ actions:
         type: text
         options:
             text: |-
-                Hi, Colleague! Aku Adam. Selamat datang di WhatsApp pesan-antar Tujuhari Coffee 😊
+                Halo $(data.name)! Selamat datang di WhatsApp pesan-antar Toko Kopi 😊Aku Ami yang akan membantumu belanja hari ini
     askNameText:
         type: text
         options:
@@ -422,7 +401,7 @@ actions:
         type: text
         options:
             text: |-
-                Terima kasih sudah menghubungi WhatsApp Toko Kopi Tuku. Sampai bertemu lagi 😉
+                Terima kasih sudah menghubungi WhatsApp Toko Kopi. Sampai bertemu lagi 😉
     welcomeMessageText:
         type: text
         options:
@@ -437,29 +416,23 @@ actions:
         type: text
         options:
             text: Wah, udah hampir 10 menit. Yuk, proses pembayaran agar pesanan tidak batal 😢
-    timeout9MinutesText:
-        type: text
-        options:
-            text: Yah, sayang sekali aku belum menerima pembayaran dan pesanan aku batalkan 😢
     storeCloseText:
         type: text
         options:
             text: |-
-                Yah, maaf $(data.name), saat ini toko sedang tutup. Jam operasional Tujuhari selama PPKM: 
-                Senin-Jumat: 9:00-19:00 
-                Sabtu-Minggu: 7:00-19:00
+                Yah, maaf $(data.name), saat ini toko sedang tutup. Toko Kopi beroperasi pukul 09:00 sampai 21:00, ya
     statusOrderText:
         type: text
         options:
             text: |-
                 Hore! Pembayaran sudah aku terima dan pesanan sedang dalam proses. $(data.name) bisa ketik *_status order_* untuk lihat status pesanan ya 😊
 
-                _Jika terjadi kendala pada pemesanan, hubungi Tujuhari di $(data.phoneStore)_
+                _Jika terjadi kendala pada pemesanan, hubungi Toko Kopi di $(data.phoneStore)_
     awaitingProcessingText:
         type: text
         options:
             text: |-
-                Pesanan $(data.name) saat ini masih *menunggu konfirmasi* dari Tujuhari Coffee. 
+                Pesanan $(data.name) saat ini masih *menunggu konfirmasi* dari Toko Kopi. 
 
                 Ketik *_status order_* lagi setelah beberapa menit, ya
     statusProcessingText:

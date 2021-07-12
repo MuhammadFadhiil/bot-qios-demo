@@ -4,7 +4,7 @@ function dataWithoutExtra(ctx) {
 
     let newArray = [];
     for (let i = 0; i < order.length; i++) {
-        if (order[i].sku !== "7h9" && order[i].sku !== "7h10") {
+        if (order[i].sku !== "a6" && order[i].sku !== "a7") {
             newArray.push(order[i]);
         }
     }

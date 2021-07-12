@@ -118,7 +118,7 @@ actions:
         type: text
         options:
             text: |-
-                Gimana pengalaman $(data.name) menggunakan WhatsApp Tujuhari Coffee?
+                Gimana pengalaman $(data.name) menggunakan WhatsApp Toko Kopi?
                 1. Sangat mengecewakan
                 2. Mengecewakan
                 3. Biasa saja
@@ -134,7 +134,7 @@ actions:
         type: text
         options:
             text: |-
-                Terima kasih sudah menghubungi WhatsApp Tujuhari. Sampai bertemu lagi 😉
+                Terima kasih sudah menghubungi WhatsApp Toko Kopi. Sampai bertemu lagi 😉
 
 #Command:
     nextCommand:
